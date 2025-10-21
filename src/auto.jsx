@@ -6,7 +6,6 @@ const FinancialDashboard = () => {
   const [startingAgents, setStartingAgents] = useState(4);
   const [additionalAgentsPerQuarter, setAdditionalAgentsPerQuarter] = useState(4);
   const [callsPerDay, setCallsPerDay] = useState(14);
-  const [agentWage, setAgentWage] = useState(0);
   const [costInbound, setCostInbound] = useState(20);
   const [pctInbound, setPctInbound] = useState(50);
   const [costTransfer, setCostTransfer] = useState(7);
@@ -14,6 +13,10 @@ const FinancialDashboard = () => {
   const [transferConv, setTransferConv] = useState(10);
   const [autoComm, setAutoComm] = useState(12);
   const [homeComm, setHomeComm] = useState(15);
+  
+  // CSR/Account Manager States
+  const [csrCount, setCsrCount] = useState(1);
+  const [csrHourlyWage, setCsrHourlyWage] = useState(15);
 
   // Constants
   const WORKING_DAYS = 20.83;
@@ -112,8 +115,9 @@ const FinancialDashboard = () => {
       const monthlyInboundCalls = totalDailyInboundCalls * WORKING_DAYS;
       const monthlyTransferCalls = totalDailyTransferCalls * WORKING_DAYS;
       const callCost = (monthlyInboundCalls * costInbound) + (monthlyTransferCalls * costTransfer);
-      const agentComp = 0;
-      const totalCost = callCost + agentComp;
+      const csrCost = csrCount * csrHourlyWage * 8 * WORKING_DAYS; // 8 hours per day, 20.83 days per month
+      const salesAgentCommission = monthlyTotalCommission * 0.10; // 10% commission for sales agents
+      const totalCost = callCost + csrCost + salesAgentCommission;
       
       const netProfit = monthlyTotalCommission - totalCost;
       const totalPremium = monthlyAutoPremium + monthlyFireHomePremium;
@@ -125,13 +129,14 @@ const FinancialDashboard = () => {
         totalPremium,
         totalRevenue: monthlyTotalCommission,
         callCost,
-        agentComp,
+        csrCost,
+        salesAgentCommission,
         totalCost,
         netProfit
       });
     }
     return data;
-  }, [startingAgents, additionalAgentsPerQuarter, callsPerDay, pctInbound, inboundConv, transferConv, autoComm, homeComm, costInbound, costTransfer, agentWage]);
+  }, [startingAgents, additionalAgentsPerQuarter, callsPerDay, pctInbound, inboundConv, transferConv, autoComm, homeComm, costInbound, costTransfer, csrCount, csrHourlyWage]);
 
   // Calculate KPIs
   const kpis = useMemo(() => {
@@ -221,7 +226,12 @@ const FinancialDashboard = () => {
             <InputSlider label="Starting Agents (Q1)" value={startingAgents} onChange={setStartingAgents} min={1} max={20} />
             <InputSlider label="Additional Agents/Quarter" value={additionalAgentsPerQuarter} onChange={setAdditionalAgentsPerQuarter} min={0} max={20} />
             <InputSlider label="Calls/Agent/Day" value={callsPerDay} onChange={setCallsPerDay} min={5} max={30} />
-            <InputNumber label="Agent Hourly Wage" value={agentWage} onChange={setAgentWage} prefix="$" />
+          </div>
+          
+          <div className="border-b pb-2">
+            <h3 className="text-sm font-semibold text-gray-700 mb-2">CSR/Account Manager</h3>
+            <InputSlider label="Number of CSRs" value={csrCount} onChange={setCsrCount} min={0} max={10} />
+            <InputNumber label="CSR Hourly Wage (8hrs/day)" value={csrHourlyWage} onChange={setCsrHourlyWage} prefix="$" />
             <div className="text-xs text-gray-500 mt-1">
               <div>Q1: {startingAgents} agents</div>
               <div>Q2: {startingAgents + additionalAgentsPerQuarter} agents</div>
@@ -303,6 +313,8 @@ const FinancialDashboard = () => {
                 <th className="px-2 py-1 text-right">Households</th>
                 <th className="px-2 py-1 text-right">Revenue</th>
                 <th className="px-2 py-1 text-right">Call Cost</th>
+                <th className="px-2 py-1 text-right">CSR Cost</th>
+                <th className="px-2 py-1 text-right">Sales Commission</th>
                 <th className="px-2 py-1 text-right">Total Cost</th>
                 <th className="px-2 py-1 text-right">Net Profit</th>
                 <th className="px-2 py-1 text-right">Cumulative Profit</th>
@@ -318,6 +330,8 @@ const FinancialDashboard = () => {
                     <td className="px-2 py-1 text-right">{Math.round(month.issuedSales).toLocaleString()}</td>
                     <td className="px-2 py-1 text-right">${Math.round(month.totalRevenue).toLocaleString()}</td>
                     <td className="px-2 py-1 text-right">${Math.round(month.callCost).toLocaleString()}</td>
+                    <td className="px-2 py-1 text-right">${Math.round(month.csrCost).toLocaleString()}</td>
+                    <td className="px-2 py-1 text-right">${Math.round(month.salesAgentCommission).toLocaleString()}</td>
                     <td className="px-2 py-1 text-right">${Math.round(month.totalCost).toLocaleString()}</td>
                     <td className={`px-2 py-1 text-right ${month.netProfit >= 0 ? 'text-green-600' : 'text-red-600'}`}>
                       ${Math.round(month.netProfit).toLocaleString()}
