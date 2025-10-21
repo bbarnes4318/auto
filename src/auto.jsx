@@ -135,30 +135,40 @@ const FinancialDashboard = () => {
 
   // Calculate KPIs
   const kpis = useMemo(() => {
-    const total2YearRevenue = monthlyData.reduce((sum, m) => sum + m.totalRevenue, 0);
-    const total2YearCost = monthlyData.reduce((sum, m) => sum + m.totalCost, 0);
-    const total2YearProfit = total2YearRevenue - total2YearCost;
-    const year2Policies = monthlyData.slice(12).reduce((sum, m) => sum + m.issuedSales, 0);
-    const year3Residual = total2YearRevenue * RETENTION_YEAR_3 * 0.5;
+    const year1Data = monthlyData.slice(0, 12);
+    const year2Data = monthlyData.slice(12, 24);
+    
+    const year1Revenue = year1Data.reduce((sum, m) => sum + m.totalRevenue, 0);
+    const year1Cost = year1Data.reduce((sum, m) => sum + m.totalCost, 0);
+    const year1Profit = year1Revenue - year1Cost;
+    
+    const year2Revenue = year2Data.reduce((sum, m) => sum + m.totalRevenue, 0);
+    const year2Cost = year2Data.reduce((sum, m) => sum + m.totalCost, 0);
+    const year2Profit = year2Revenue - year2Cost;
+    
+    const year2Residuals = year1Revenue * RETENTION_YEAR_3;
+    const year3Residuals = year2Revenue * RETENTION_YEAR_3;
     
     return {
-      total2YearRevenue,
-      total2YearProfit,
-      year2Policies,
-      year3Residual
+      year1Profit,
+      year2Residuals,
+      year2Profit,
+      year3Residuals
     };
   }, [monthlyData]);
 
-  // Prepare chart data
-  const chartData = monthlyData.map(m => ({
+  // Prepare chart data - focus on first 12 months for better visibility
+  const chartData = monthlyData.slice(0, 12).map(m => ({
     month: `M${m.month}`,
     Revenue: Math.round(m.totalRevenue),
-    Cost: Math.round(m.totalCost)
+    Cost: Math.round(m.totalCost),
+    Profit: Math.round(m.netProfit)
   }));
 
-  const cumulativeData = monthlyData.map((m, idx) => ({
+  const cumulativeData = monthlyData.slice(0, 12).map((m, idx) => ({
     month: `M${m.month}`,
-    policies: Math.round(monthlyData.slice(0, idx + 1).reduce((sum, d) => sum + d.issuedSales, 0))
+    policies: Math.round(monthlyData.slice(0, idx + 1).reduce((sum, d) => sum + d.issuedSales, 0)),
+    cumulativeProfit: Math.round(monthlyData.slice(0, idx + 1).reduce((sum, d) => sum + d.netProfit, 0))
   }));
 
   // Calculate yearly summaries
@@ -242,16 +252,16 @@ const FinancialDashboard = () => {
       <div className="w-3/4 flex flex-col gap-3 overflow-hidden">
         {/* KPIs */}
         <div className="grid grid-cols-4 gap-3">
-          <KPICard title="2-Year Revenue" value={formatCurrency(kpis.total2YearRevenue)} color="blue" />
-          <KPICard title="2-Year Net Profit" value={formatCurrency(kpis.total2YearProfit)} color="green" />
-          <KPICard title="Year 2 Policies" value={formatNumber(kpis.year2Policies)} color="purple" />
-          <KPICard title="Year 3 Residual" value={formatCurrency(kpis.year3Residual)} color="orange" />
+          <KPICard title="Year 1 Profit" value={formatCurrency(kpis.year1Profit)} color="green" />
+          <KPICard title="Year 2 Residuals" value={formatCurrency(kpis.year2Residuals)} color="blue" />
+          <KPICard title="Year 2 Profit" value={formatCurrency(kpis.year2Profit)} color="purple" />
+          <KPICard title="Year 3 Residuals" value={formatCurrency(kpis.year3Residuals)} color="orange" />
         </div>
 
         {/* Charts */}
         <div className="grid grid-cols-2 gap-3 h-64">
           <div className="bg-white rounded-lg shadow-sm p-3">
-            <h3 className="text-sm font-semibold text-gray-700 mb-2">Monthly Performance</h3>
+            <h3 className="text-sm font-semibold text-gray-700 mb-2">Monthly Performance (First 12 Months)</h3>
             <ResponsiveContainer width="100%" height="90%">
               <BarChart data={chartData}>
                 <CartesianGrid strokeDasharray="3 3" />
@@ -261,12 +271,13 @@ const FinancialDashboard = () => {
                 <Legend wrapperStyle={{ fontSize: 11 }} />
                 <Bar dataKey="Revenue" fill="#3b82f6" />
                 <Bar dataKey="Cost" fill="#ef4444" />
+                <Bar dataKey="Profit" fill="#10b981" />
               </BarChart>
             </ResponsiveContainer>
           </div>
 
           <div className="bg-white rounded-lg shadow-sm p-3">
-            <h3 className="text-sm font-semibold text-gray-700 mb-2">Cumulative Policies</h3>
+            <h3 className="text-sm font-semibold text-gray-700 mb-2">Cumulative Growth (First 12 Months)</h3>
             <ResponsiveContainer width="100%" height="90%">
               <LineChart data={cumulativeData}>
                 <CartesianGrid strokeDasharray="3 3" />
@@ -274,10 +285,51 @@ const FinancialDashboard = () => {
                 <YAxis tick={{ fontSize: 10 }} />
                 <Tooltip />
                 <Legend wrapperStyle={{ fontSize: 11 }} />
-                <Line type="monotone" dataKey="policies" stroke="#8b5cf6" strokeWidth={2} />
+                <Line type="monotone" dataKey="policies" stroke="#8b5cf6" strokeWidth={2} name="Cumulative Policies" />
+                <Line type="monotone" dataKey="cumulativeProfit" stroke="#10b981" strokeWidth={2} name="Cumulative Profit" />
               </LineChart>
             </ResponsiveContainer>
           </div>
+        </div>
+
+        {/* Monthly Breakdown for First 6 Months */}
+        <div className="bg-white rounded-lg shadow-sm p-3 overflow-auto">
+          <h3 className="text-sm font-semibold text-gray-700 mb-2">First 6 Months - Cashflow Analysis</h3>
+          <table className="w-full text-xs">
+            <thead className="bg-gray-50">
+              <tr>
+                <th className="px-2 py-1 text-left">Month</th>
+                <th className="px-2 py-1 text-right">Agents</th>
+                <th className="px-2 py-1 text-right">Households</th>
+                <th className="px-2 py-1 text-right">Revenue</th>
+                <th className="px-2 py-1 text-right">Call Cost</th>
+                <th className="px-2 py-1 text-right">Total Cost</th>
+                <th className="px-2 py-1 text-right">Net Profit</th>
+                <th className="px-2 py-1 text-right">Cumulative Profit</th>
+              </tr>
+            </thead>
+            <tbody>
+              {monthlyData.slice(0, 6).map((month, idx) => {
+                const cumulativeProfit = monthlyData.slice(0, idx + 1).reduce((sum, m) => sum + m.netProfit, 0);
+                return (
+                  <tr key={month.month} className="border-t">
+                    <td className="px-2 py-1 font-medium">Month {month.month}</td>
+                    <td className="px-2 py-1 text-right">{month.totalAgents}</td>
+                    <td className="px-2 py-1 text-right">{Math.round(month.issuedSales).toLocaleString()}</td>
+                    <td className="px-2 py-1 text-right">${Math.round(month.totalRevenue).toLocaleString()}</td>
+                    <td className="px-2 py-1 text-right">${Math.round(month.callCost).toLocaleString()}</td>
+                    <td className="px-2 py-1 text-right">${Math.round(month.totalCost).toLocaleString()}</td>
+                    <td className={`px-2 py-1 text-right ${month.netProfit >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                      ${Math.round(month.netProfit).toLocaleString()}
+                    </td>
+                    <td className={`px-2 py-1 text-right font-semibold ${cumulativeProfit >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                      ${Math.round(cumulativeProfit).toLocaleString()}
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
         </div>
 
         {/* Tables */}
