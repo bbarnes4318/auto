@@ -3,8 +3,7 @@ import { LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, L
 
 const FinancialDashboard = () => {
   // Input States
-  const [startingAgents, setStartingAgents] = useState(4);
-  const [additionalAgentsPerQuarter, setAdditionalAgentsPerQuarter] = useState(4);
+  const [agents, setAgents] = useState(4);
   const [callsPerDay, setCallsPerDay] = useState(14);
   const [agentWage, setAgentWage] = useState(0);
   const [costInbound, setCostInbound] = useState(20);
@@ -23,78 +22,25 @@ const FinancialDashboard = () => {
   const AUTO_MIX = 0.70;
   const HOME_MIX = 0.30;
   const RETENTION_YEAR_3 = 0.75;
-  
-  // Realistic sales reduction for new agents (B25-B27 from Excel)
-  const FIRST_MONTH_REDUCTION = 0.50;  // 50% of expected sales
-  const SECOND_MONTH_REDUCTION = 0.65; // 65% of expected sales
-  const THIRD_MONTH_REDUCTION = 0.80;  // 80% of expected sales
 
-  // Calculate monthly projections with realistic agent ramp-up
+  // Calculate monthly projections
   const monthlyData = useMemo(() => {
     const data = [];
-    
     for (let month = 1; month <= 24; month++) {
-      // Calculate total agents for this month
-      const quarter = Math.ceil(month / 3);
-      const monthInQuarter = ((month - 1) % 3) + 1;
+      const totalCalls = agents * callsPerDay * WORKING_DAYS;
+      const inboundCalls = totalCalls * (pctInbound / 100);
+      const transferCalls = totalCalls * ((100 - pctInbound) / 100);
       
-      // Starting agents (only in Q1)
-      const startingAgentsCount = quarter === 1 ? startingAgents : 0;
-      
-      // Additional agents (added each quarter)
-      const additionalAgentsCount = (quarter - 1) * additionalAgentsPerQuarter;
-      
-      // Total agents this month
-      const totalAgents = startingAgentsCount + additionalAgentsCount;
-      
-      // Calculate calls for each agent type
-      const startingAgentCalls = startingAgentsCount * callsPerDay * WORKING_DAYS;
-      const additionalAgentCalls = additionalAgentsCount * callsPerDay * WORKING_DAYS;
-      
-      // Calculate calls and sales for each agent group separately
-      const startingAgentInboundCalls = startingAgentCalls * (pctInbound / 100);
-      const startingAgentTransferCalls = startingAgentCalls * ((100 - pctInbound) / 100);
-      const additionalAgentInboundCalls = additionalAgentCalls * (pctInbound / 100);
-      const additionalAgentTransferCalls = additionalAgentCalls * ((100 - pctInbound) / 100);
-      
-      // Calculate sales for each group
-      const startingAgentInboundSales = startingAgentInboundCalls * (inboundConv / 100);
-      const startingAgentTransferSales = startingAgentTransferCalls * (transferConv / 100);
-      const additionalAgentInboundSales = additionalAgentInboundCalls * (inboundConv / 100);
-      const additionalAgentTransferSales = additionalAgentTransferCalls * (transferConv / 100);
-      
-      // Apply realistic sales reduction
-      let startingAgentSalesMultiplier = 1;
-      let additionalAgentSalesMultiplier = 1;
-      
-      if (quarter === 1) {
-        // Starting agents in Q1 get reduction based on month in quarter
-        if (monthInQuarter === 1) startingAgentSalesMultiplier = FIRST_MONTH_REDUCTION;
-        else if (monthInQuarter === 2) startingAgentSalesMultiplier = SECOND_MONTH_REDUCTION;
-        else if (monthInQuarter === 3) startingAgentSalesMultiplier = THIRD_MONTH_REDUCTION;
-      }
-      
-      // Additional agents get reduction based on their first quarter
-      if (quarter > 1) {
-        if (monthInQuarter === 1) additionalAgentSalesMultiplier = FIRST_MONTH_REDUCTION;
-        else if (monthInQuarter === 2) additionalAgentSalesMultiplier = SECOND_MONTH_REDUCTION;
-        else if (monthInQuarter === 3) additionalAgentSalesMultiplier = THIRD_MONTH_REDUCTION;
-      }
-      
-      // Calculate total sales with realistic reduction
-      const startingAgentTotalSales = (startingAgentInboundSales + startingAgentTransferSales) * startingAgentSalesMultiplier;
-      const additionalAgentTotalSales = (additionalAgentInboundSales + additionalAgentTransferSales) * additionalAgentSalesMultiplier;
-      const totalSales = startingAgentTotalSales + additionalAgentTotalSales;
-      
+      const inboundSales = inboundCalls * (inboundConv / 100);
+      const transferSales = transferCalls * (transferConv / 100);
+      const totalSales = inboundSales + transferSales;
       const issuedSales = totalSales * ISSUANCE_RATE;
       
       const autoRevenue = (issuedSales * AUTO_MIX) * AUTO_PREMIUM * (autoComm / 100);
       const homeRevenue = (issuedSales * HOME_MIX) * HOME_PREMIUM * (homeComm / 100);
       const totalRevenue = autoRevenue + homeRevenue;
       
-      const totalInboundCalls = startingAgentInboundCalls + additionalAgentInboundCalls;
-      const totalTransferCalls = startingAgentTransferCalls + additionalAgentTransferCalls;
-      const callCost = (totalInboundCalls * costInbound) + (totalTransferCalls * costTransfer);
+      const callCost = (inboundCalls * costInbound) + (transferCalls * costTransfer);
       const agentComp = 0; // Based on Excel: AgentComp per hour = 0
       const totalCost = callCost + agentComp;
       
@@ -103,7 +49,6 @@ const FinancialDashboard = () => {
       
       data.push({
         month,
-        totalAgents,
         issuedSales,
         totalPremium,
         totalRevenue,
@@ -114,7 +59,7 @@ const FinancialDashboard = () => {
       });
     }
     return data;
-  }, [startingAgents, additionalAgentsPerQuarter, callsPerDay, pctInbound, inboundConv, transferConv, autoComm, homeComm, costInbound, costTransfer, agentWage]);
+  }, [agents, callsPerDay, pctInbound, inboundConv, transferConv, autoComm, homeComm, costInbound, costTransfer, agentWage]);
 
   // Calculate KPIs
   const kpis = useMemo(() => {
@@ -191,16 +136,9 @@ const FinancialDashboard = () => {
         <div className="space-y-3">
           <div className="border-b pb-2">
             <h3 className="text-sm font-semibold text-gray-700 mb-2">Agency</h3>
-            <InputSlider label="Starting Agents (Q1)" value={startingAgents} onChange={setStartingAgents} min={1} max={20} />
-            <InputSlider label="Additional Agents/Quarter" value={additionalAgentsPerQuarter} onChange={setAdditionalAgentsPerQuarter} min={0} max={20} />
+            <InputSlider label="Licensed Agents" value={agents} onChange={setAgents} min={1} max={50} />
             <InputSlider label="Calls/Agent/Day" value={callsPerDay} onChange={setCallsPerDay} min={5} max={30} />
             <InputNumber label="Agent Hourly Wage" value={agentWage} onChange={setAgentWage} prefix="$" />
-            <div className="text-xs text-gray-500 mt-1">
-              <div>Q1: {startingAgents} agents</div>
-              <div>Q2: {startingAgents + additionalAgentsPerQuarter} agents</div>
-              <div>Q3: {startingAgents + (additionalAgentsPerQuarter * 2)} agents</div>
-              <div>Q4: {startingAgents + (additionalAgentsPerQuarter * 3)} agents</div>
-            </div>
           </div>
           
           <div className="border-b pb-2">
