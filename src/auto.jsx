@@ -162,18 +162,12 @@ const FinancialDashboard = () => {
     };
   }, [monthlyData]);
 
-  // Prepare chart data - focus on first 12 months for better visibility
-  const chartData = monthlyData.slice(0, 12).map(m => ({
+  // Prepare chart data - show all 24 months
+  const chartData = monthlyData.map(m => ({
     month: `M${m.month}`,
     Revenue: Math.round(m.totalRevenue),
     Cost: Math.round(m.totalCost),
     Profit: Math.round(m.netProfit)
-  }));
-
-  const cumulativeData = monthlyData.slice(0, 12).map((m, idx) => ({
-    month: `M${m.month}`,
-    policies: Math.round(monthlyData.slice(0, idx + 1).reduce((sum, d) => sum + d.issuedSales, 0)),
-    cumulativeProfit: Math.round(monthlyData.slice(0, idx + 1).reduce((sum, d) => sum + d.netProfit, 0))
   }));
 
   // Calculate yearly summaries
@@ -268,38 +262,21 @@ const FinancialDashboard = () => {
           <KPICard title="Year 3 Residuals" value={formatCurrency(kpis.year3Residuals)} color="orange" />
         </div>
 
-        {/* Charts */}
-        <div className="grid grid-cols-2 gap-3 h-64">
-          <div className="bg-white rounded-lg shadow-sm p-3">
-            <h3 className="text-sm font-semibold text-gray-700 mb-2">Monthly Performance (First 12 Months)</h3>
-            <ResponsiveContainer width="100%" height="90%">
-              <BarChart data={chartData}>
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="month" tick={{ fontSize: 10 }} />
-                <YAxis tick={{ fontSize: 10 }} />
-                <Tooltip />
-                <Legend wrapperStyle={{ fontSize: 11 }} />
-                <Bar dataKey="Revenue" fill="#3b82f6" />
-                <Bar dataKey="Cost" fill="#ef4444" />
-                <Bar dataKey="Profit" fill="#10b981" />
-              </BarChart>
-            </ResponsiveContainer>
-          </div>
-
-          <div className="bg-white rounded-lg shadow-sm p-3">
-            <h3 className="text-sm font-semibold text-gray-700 mb-2">Cumulative Growth (First 12 Months)</h3>
-            <ResponsiveContainer width="100%" height="90%">
-              <LineChart data={cumulativeData}>
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="month" tick={{ fontSize: 10 }} />
-                <YAxis tick={{ fontSize: 10 }} />
-                <Tooltip />
-                <Legend wrapperStyle={{ fontSize: 11 }} />
-                <Line type="monotone" dataKey="policies" stroke="#8b5cf6" strokeWidth={2} name="Cumulative Policies" />
-                <Line type="monotone" dataKey="cumulativeProfit" stroke="#10b981" strokeWidth={2} name="Cumulative Profit" />
-              </LineChart>
-            </ResponsiveContainer>
-          </div>
+        {/* Chart */}
+        <div className="bg-white rounded-lg shadow-sm p-3 h-64">
+          <h3 className="text-sm font-semibold text-gray-700 mb-2">Monthly Performance (24 Months)</h3>
+          <ResponsiveContainer width="100%" height="90%">
+            <BarChart data={chartData}>
+              <CartesianGrid strokeDasharray="3 3" />
+              <XAxis dataKey="month" tick={{ fontSize: 10 }} />
+              <YAxis tick={{ fontSize: 10 }} />
+              <Tooltip />
+              <Legend wrapperStyle={{ fontSize: 11 }} />
+              <Bar dataKey="Revenue" fill="#3b82f6" />
+              <Bar dataKey="Cost" fill="#ef4444" />
+              <Bar dataKey="Profit" fill="#10b981" />
+            </BarChart>
+          </ResponsiveContainer>
         </div>
 
         {/* Monthly Breakdown for First 6 Months */}
