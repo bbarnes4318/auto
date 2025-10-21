@@ -24,10 +24,10 @@ const FinancialDashboard = () => {
   const MULTILINE_PERCENTAGE = 0.25; // 25% of households get fire/home policies
   const RETENTION_YEAR_3 = 0.75;
   
-  // Realistic sales reduction for new agents (B25-B27 from Excel)
-  const FIRST_MONTH_REDUCTION = 0.50;  // 50% of expected sales
-  const SECOND_MONTH_REDUCTION = 0.65; // 65% of expected sales
-  const THIRD_MONTH_REDUCTION = 0.80;  // 80% of expected sales
+  // Realistic performance progression for new agents (B25-B27 from Excel)
+  const FIRST_MONTH_PERFORMANCE = 0.50;  // 50% of expected sales (learning phase)
+  const SECOND_MONTH_PERFORMANCE = 0.65; // 65% of expected sales (improving)
+  const THIRD_MONTH_PERFORMANCE = 0.80;  // 80% of expected sales (almost full performance)
 
   // Calculate monthly projections with realistic agent ramp-up
   const monthlyData = useMemo(() => {
@@ -37,49 +37,46 @@ const FinancialDashboard = () => {
       const quarter = Math.ceil(month / 3);
       const monthInQuarter = ((month - 1) % 3) + 1;
       
-      // Calculate total agents for this month
-      const startingAgentsCount = quarter === 1 ? startingAgents : 0;
-      const additionalAgentsCount = (quarter - 1) * additionalAgentsPerQuarter;
-      const totalAgents = startingAgentsCount + additionalAgentsCount;
+      // Calculate agent counts for this month
+      const experiencedAgentsCount = quarter === 1 ? 0 : startingAgents + ((quarter - 2) * additionalAgentsPerQuarter);
+      const newAgentsCount = quarter === 1 ? startingAgents : additionalAgentsPerQuarter;
+      const totalAgents = experiencedAgentsCount + newAgentsCount;
       
       // Calculate daily calls per agent type
-      const startingAgentDailyCalls = startingAgentsCount * callsPerDay;
-      const additionalAgentDailyCalls = additionalAgentsCount * callsPerDay;
+      const experiencedAgentDailyCalls = experiencedAgentsCount * callsPerDay;
+      const newAgentDailyCalls = newAgentsCount * callsPerDay;
       
       // Calculate daily inbound and transfer calls
-      const startingAgentDailyInbound = startingAgentDailyCalls * (pctInbound / 100);
-      const startingAgentDailyTransfer = startingAgentDailyCalls * ((100 - pctInbound) / 100);
-      const additionalAgentDailyInbound = additionalAgentDailyCalls * (pctInbound / 100);
-      const additionalAgentDailyTransfer = additionalAgentDailyCalls * ((100 - pctInbound) / 100);
+      const experiencedAgentDailyInbound = experiencedAgentDailyCalls * (pctInbound / 100);
+      const experiencedAgentDailyTransfer = experiencedAgentDailyCalls * ((100 - pctInbound) / 100);
+      const newAgentDailyInbound = newAgentDailyCalls * (pctInbound / 100);
+      const newAgentDailyTransfer = newAgentDailyCalls * ((100 - pctInbound) / 100);
       
       // Calculate daily households from conversions
-      const startingAgentDailyInboundHouseholds = startingAgentDailyInbound * (inboundConv / 100);
-      const startingAgentDailyTransferHouseholds = startingAgentDailyTransfer * (transferConv / 100);
-      const additionalAgentDailyInboundHouseholds = additionalAgentDailyInbound * (inboundConv / 100);
-      const additionalAgentDailyTransferHouseholds = additionalAgentDailyTransfer * (transferConv / 100);
+      const experiencedAgentDailyInboundHouseholds = experiencedAgentDailyInbound * (inboundConv / 100);
+      const experiencedAgentDailyTransferHouseholds = experiencedAgentDailyTransfer * (transferConv / 100);
+      const newAgentDailyInboundHouseholds = newAgentDailyInbound * (inboundConv / 100);
+      const newAgentDailyTransferHouseholds = newAgentDailyTransfer * (transferConv / 100);
       
-      // Apply realistic sales reduction to new agents
-      let startingAgentMultiplier = 1;
-      let additionalAgentMultiplier = 1;
+      // Apply performance multipliers
+      let newAgentMultiplier = 1;
       
       if (quarter === 1) {
-        // Starting agents in Q1 get reduction
-        if (monthInQuarter === 1) startingAgentMultiplier = FIRST_MONTH_REDUCTION;
-        else if (monthInQuarter === 2) startingAgentMultiplier = SECOND_MONTH_REDUCTION;
-        else if (monthInQuarter === 3) startingAgentMultiplier = THIRD_MONTH_REDUCTION;
+        // Starting agents in Q1 get performance progression
+        if (monthInQuarter === 1) newAgentMultiplier = FIRST_MONTH_PERFORMANCE;
+        else if (monthInQuarter === 2) newAgentMultiplier = SECOND_MONTH_PERFORMANCE;
+        else if (monthInQuarter === 3) newAgentMultiplier = THIRD_MONTH_PERFORMANCE;
+      } else {
+        // Additional agents get performance progression in their first quarter
+        if (monthInQuarter === 1) newAgentMultiplier = FIRST_MONTH_PERFORMANCE;
+        else if (monthInQuarter === 2) newAgentMultiplier = SECOND_MONTH_PERFORMANCE;
+        else if (monthInQuarter === 3) newAgentMultiplier = THIRD_MONTH_PERFORMANCE;
       }
       
-      if (quarter > 1) {
-        // Additional agents get reduction in their first quarter
-        if (monthInQuarter === 1) additionalAgentMultiplier = FIRST_MONTH_REDUCTION;
-        else if (monthInQuarter === 2) additionalAgentMultiplier = SECOND_MONTH_REDUCTION;
-        else if (monthInQuarter === 3) additionalAgentMultiplier = THIRD_MONTH_REDUCTION;
-      }
-      
-      // Calculate total daily households with realistic reduction
-      const startingAgentDailyHouseholds = (startingAgentDailyInboundHouseholds + startingAgentDailyTransferHouseholds) * startingAgentMultiplier;
-      const additionalAgentDailyHouseholds = (additionalAgentDailyInboundHouseholds + additionalAgentDailyTransferHouseholds) * additionalAgentMultiplier;
-      const totalDailyHouseholds = startingAgentDailyHouseholds + additionalAgentDailyHouseholds;
+      // Calculate total daily households
+      const experiencedAgentDailyHouseholds = experiencedAgentDailyInboundHouseholds + experiencedAgentDailyTransferHouseholds; // 100% performance
+      const newAgentDailyHouseholds = (newAgentDailyInboundHouseholds + newAgentDailyTransferHouseholds) * newAgentMultiplier;
+      const totalDailyHouseholds = experiencedAgentDailyHouseholds + newAgentDailyHouseholds;
       
       // Apply apps to issue rate
       const dailyIssuedHouseholds = totalDailyHouseholds * ISSUANCE_RATE;
@@ -110,8 +107,8 @@ const FinancialDashboard = () => {
       const monthlyTotalCommission = dailyTotalCommission * WORKING_DAYS;
       
       // Calculate costs
-      const totalDailyInboundCalls = startingAgentDailyInbound + additionalAgentDailyInbound;
-      const totalDailyTransferCalls = startingAgentDailyTransfer + additionalAgentDailyTransfer;
+      const totalDailyInboundCalls = experiencedAgentDailyInbound + newAgentDailyInbound;
+      const totalDailyTransferCalls = experiencedAgentDailyTransfer + newAgentDailyTransfer;
       const monthlyInboundCalls = totalDailyInboundCalls * WORKING_DAYS;
       const monthlyTransferCalls = totalDailyTransferCalls * WORKING_DAYS;
       const callCost = (monthlyInboundCalls * costInbound) + (monthlyTransferCalls * costTransfer);
