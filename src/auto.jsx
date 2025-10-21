@@ -155,9 +155,13 @@ const FinancialDashboard = () => {
     const year3Residuals = year2Revenue * RETENTION_YEAR_3;
     
     return {
+      year1Revenue,
+      year1Cost,
       year1Profit,
-      year2Residuals,
+      year2Revenue,
+      year2Cost,
       year2Profit,
+      year2Residuals,
       year3Residuals
     };
   }, [monthlyData]);
@@ -256,9 +260,13 @@ const FinancialDashboard = () => {
       <div className="w-3/4 flex flex-col gap-3 overflow-hidden">
         {/* KPIs */}
         <div className="grid grid-cols-4 gap-3">
+          <KPICard title="Year 1 Revenue" value={formatCurrency(kpis.year1Revenue)} color="blue" />
+          <KPICard title="Year 1 Costs" value={formatCurrency(kpis.year1Cost)} color="red" />
           <KPICard title="Year 1 Profit" value={formatCurrency(kpis.year1Profit)} color="green" />
-          <KPICard title="Year 2 Residuals" value={formatCurrency(kpis.year2Residuals)} color="blue" />
-          <KPICard title="Year 2 Profit" value={formatCurrency(kpis.year2Profit)} color="purple" />
+          <KPICard title="Year 2 Revenue" value={formatCurrency(kpis.year2Revenue)} color="blue" />
+          <KPICard title="Year 2 Costs" value={formatCurrency(kpis.year2Cost)} color="red" />
+          <KPICard title="Year 2 Profit" value={formatCurrency(kpis.year2Profit)} color="green" />
+          <KPICard title="Year 2 Residuals" value={formatCurrency(kpis.year2Residuals)} color="purple" />
           <KPICard title="Year 3 Residuals" value={formatCurrency(kpis.year3Residuals)} color="orange" />
         </div>
 
@@ -369,6 +377,7 @@ const KPICard = ({ title, value, color }) => {
   const colorMap = {
     blue: 'bg-blue-50 text-blue-700 border-blue-200',
     green: 'bg-green-50 text-green-700 border-green-200',
+    red: 'bg-red-50 text-red-700 border-red-200',
     purple: 'bg-purple-50 text-purple-700 border-purple-200',
     orange: 'bg-orange-50 text-orange-700 border-orange-200'
   };
