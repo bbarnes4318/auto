@@ -119,7 +119,17 @@ const FinancialDashboard = () => {
       const salesAgentCommission = monthlyTotalCommission * 0.10; // 10% commission for sales agents
       const totalCost = callCost + csrCost + salesAgentCommission;
       
-      const netProfit = monthlyTotalCommission - totalCost;
+      // Calculate residual income for Year 2 (months 13-24)
+      let residualIncome = 0;
+      if (month >= 13) {
+        // Calculate Year 1 total revenue for residual calculation
+        const year1Data = data.slice(0, 12);
+        const year1TotalRevenue = year1Data.reduce((sum, m) => sum + m.totalRevenue, 0);
+        residualIncome = (year1TotalRevenue * RETENTION_YEAR_3) / 12; // Distribute evenly across Year 2 months
+      }
+      
+      const totalRevenueWithResiduals = monthlyTotalCommission + residualIncome;
+      const netProfit = totalRevenueWithResiduals - totalCost;
       const totalPremium = monthlyAutoPremium + monthlyFireHomePremium;
       
       data.push({
@@ -127,7 +137,8 @@ const FinancialDashboard = () => {
         totalAgents,
         issuedSales: monthlyIssuedHouseholds,
         totalPremium,
-        totalRevenue: monthlyTotalCommission,
+        totalRevenue: totalRevenueWithResiduals,
+        residualIncome,
         callCost,
         csrCost,
         salesAgentCommission,
@@ -149,16 +160,20 @@ const FinancialDashboard = () => {
     
     const year2Revenue = year2Data.reduce((sum, m) => sum + m.totalRevenue, 0);
     const year2Cost = year2Data.reduce((sum, m) => sum + m.totalCost, 0);
-    const year2Profit = year2Revenue - year2Cost;
     
+    // Calculate residual income from previous year
     const year2Residuals = year1Revenue * RETENTION_YEAR_3;
     const year3Residuals = year2Revenue * RETENTION_YEAR_3;
+    
+    // Add residual income to the appropriate year's revenue
+    const year2RevenueWithResiduals = year2Revenue + year2Residuals;
+    const year2Profit = year2RevenueWithResiduals - year2Cost;
     
     return {
       year1Revenue,
       year1Cost,
       year1Profit,
-      year2Revenue,
+      year2Revenue: year2RevenueWithResiduals,
       year2Cost,
       year2Profit,
       year2Residuals,
@@ -297,6 +312,7 @@ const FinancialDashboard = () => {
                 <th className="px-2 py-1 text-right">Agents</th>
                 <th className="px-2 py-1 text-right">Households</th>
                 <th className="px-2 py-1 text-right">Revenue</th>
+                <th className="px-2 py-1 text-right">Residual</th>
                 <th className="px-2 py-1 text-right">Call Cost</th>
                 <th className="px-2 py-1 text-right">CSR Cost</th>
                 <th className="px-2 py-1 text-right">Sales Commission</th>
@@ -314,6 +330,7 @@ const FinancialDashboard = () => {
                     <td className="px-2 py-1 text-right">{month.totalAgents}</td>
                     <td className="px-2 py-1 text-right">{Math.round(month.issuedSales).toLocaleString()}</td>
                     <td className="px-2 py-1 text-right">${Math.round(month.totalRevenue).toLocaleString()}</td>
+                    <td className="px-2 py-1 text-right">${Math.round(month.residualIncome || 0).toLocaleString()}</td>
                     <td className="px-2 py-1 text-right">${Math.round(month.callCost).toLocaleString()}</td>
                     <td className="px-2 py-1 text-right">${Math.round(month.csrCost).toLocaleString()}</td>
                     <td className="px-2 py-1 text-right">${Math.round(month.salesAgentCommission).toLocaleString()}</td>
