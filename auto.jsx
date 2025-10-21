@@ -128,9 +128,9 @@ const FinancialDashboard = () => {
   const formatNumber = (value) => Math.round(value).toLocaleString();
 
   return (
-    <div className="flex h-screen bg-gray-50 p-3 gap-3">
+    <div className="flex h-screen bg-gray-50">
       {/* Input Panel */}
-      <div className="w-1/4 bg-white rounded-lg shadow-sm p-4 overflow-y-auto max-h-full">
+      <div className="w-1/4 bg-white m-3 rounded-lg shadow-sm p-4 overflow-y-auto">
         <h2 className="text-lg font-bold text-gray-800 mb-3">Assumption Inputs</h2>
         
         <div className="space-y-3">
@@ -160,7 +160,7 @@ const FinancialDashboard = () => {
       </div>
 
       {/* Dashboard Panel */}
-      <div className="w-3/4 flex flex-col gap-3 overflow-y-auto">
+      <div className="w-3/4 flex flex-col m-3 gap-3 overflow-y-auto">
         {/* KPIs */}
         <div className="grid grid-cols-4 gap-3">
           <KPICard title="2-Year Revenue" value={formatCurrency(kpis.total2YearRevenue)} color="blue" />
