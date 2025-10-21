@@ -20,8 +20,8 @@ const FinancialDashboard = () => {
   const ISSUANCE_RATE = 0.75;
   const AUTO_PREMIUM = 1197;
   const HOME_PREMIUM = 1480;
-  const AUTO_MIX = 0.70;
-  const HOME_MIX = 0.30;
+  const AUTOS_PER_HOUSEHOLD = 1.5;
+  const MULTILINE_PERCENTAGE = 0.25; // 25% of households get fire/home policies
   const RETENTION_YEAR_3 = 0.75;
   
   // Realistic sales reduction for new agents (B25-B27 from Excel)
@@ -34,79 +34,99 @@ const FinancialDashboard = () => {
     const data = [];
     
     for (let month = 1; month <= 24; month++) {
-      // Calculate total agents for this month
       const quarter = Math.ceil(month / 3);
       const monthInQuarter = ((month - 1) % 3) + 1;
       
-      // Starting agents (only in Q1)
+      // Calculate total agents for this month
       const startingAgentsCount = quarter === 1 ? startingAgents : 0;
-      
-      // Additional agents (added each quarter)
       const additionalAgentsCount = (quarter - 1) * additionalAgentsPerQuarter;
-      
-      // Total agents this month
       const totalAgents = startingAgentsCount + additionalAgentsCount;
       
-      // Calculate calls for each agent type
-      const startingAgentCalls = startingAgentsCount * callsPerDay * WORKING_DAYS;
-      const additionalAgentCalls = additionalAgentsCount * callsPerDay * WORKING_DAYS;
+      // Calculate daily calls per agent type
+      const startingAgentDailyCalls = startingAgentsCount * callsPerDay;
+      const additionalAgentDailyCalls = additionalAgentsCount * callsPerDay;
       
-      // Calculate calls and sales for each agent group separately
-      const startingAgentInboundCalls = startingAgentCalls * (pctInbound / 100);
-      const startingAgentTransferCalls = startingAgentCalls * ((100 - pctInbound) / 100);
-      const additionalAgentInboundCalls = additionalAgentCalls * (pctInbound / 100);
-      const additionalAgentTransferCalls = additionalAgentCalls * ((100 - pctInbound) / 100);
+      // Calculate daily inbound and transfer calls
+      const startingAgentDailyInbound = startingAgentDailyCalls * (pctInbound / 100);
+      const startingAgentDailyTransfer = startingAgentDailyCalls * ((100 - pctInbound) / 100);
+      const additionalAgentDailyInbound = additionalAgentDailyCalls * (pctInbound / 100);
+      const additionalAgentDailyTransfer = additionalAgentDailyCalls * ((100 - pctInbound) / 100);
       
-      // Calculate sales for each group
-      const startingAgentInboundSales = startingAgentInboundCalls * (inboundConv / 100);
-      const startingAgentTransferSales = startingAgentTransferCalls * (transferConv / 100);
-      const additionalAgentInboundSales = additionalAgentInboundCalls * (inboundConv / 100);
-      const additionalAgentTransferSales = additionalAgentTransferCalls * (transferConv / 100);
+      // Calculate daily households from conversions
+      const startingAgentDailyInboundHouseholds = startingAgentDailyInbound * (inboundConv / 100);
+      const startingAgentDailyTransferHouseholds = startingAgentDailyTransfer * (transferConv / 100);
+      const additionalAgentDailyInboundHouseholds = additionalAgentDailyInbound * (inboundConv / 100);
+      const additionalAgentDailyTransferHouseholds = additionalAgentDailyTransfer * (transferConv / 100);
       
-      // Apply realistic sales reduction
-      let startingAgentSalesMultiplier = 1;
-      let additionalAgentSalesMultiplier = 1;
+      // Apply realistic sales reduction to new agents
+      let startingAgentMultiplier = 1;
+      let additionalAgentMultiplier = 1;
       
       if (quarter === 1) {
-        // Starting agents in Q1 get reduction based on month in quarter
-        if (monthInQuarter === 1) startingAgentSalesMultiplier = FIRST_MONTH_REDUCTION;
-        else if (monthInQuarter === 2) startingAgentSalesMultiplier = SECOND_MONTH_REDUCTION;
-        else if (monthInQuarter === 3) startingAgentSalesMultiplier = THIRD_MONTH_REDUCTION;
+        // Starting agents in Q1 get reduction
+        if (monthInQuarter === 1) startingAgentMultiplier = FIRST_MONTH_REDUCTION;
+        else if (monthInQuarter === 2) startingAgentMultiplier = SECOND_MONTH_REDUCTION;
+        else if (monthInQuarter === 3) startingAgentMultiplier = THIRD_MONTH_REDUCTION;
       }
       
-      // Additional agents get reduction based on their first quarter
       if (quarter > 1) {
-        if (monthInQuarter === 1) additionalAgentSalesMultiplier = FIRST_MONTH_REDUCTION;
-        else if (monthInQuarter === 2) additionalAgentSalesMultiplier = SECOND_MONTH_REDUCTION;
-        else if (monthInQuarter === 3) additionalAgentSalesMultiplier = THIRD_MONTH_REDUCTION;
+        // Additional agents get reduction in their first quarter
+        if (monthInQuarter === 1) additionalAgentMultiplier = FIRST_MONTH_REDUCTION;
+        else if (monthInQuarter === 2) additionalAgentMultiplier = SECOND_MONTH_REDUCTION;
+        else if (monthInQuarter === 3) additionalAgentMultiplier = THIRD_MONTH_REDUCTION;
       }
       
-      // Calculate total sales with realistic reduction
-      const startingAgentTotalSales = (startingAgentInboundSales + startingAgentTransferSales) * startingAgentSalesMultiplier;
-      const additionalAgentTotalSales = (additionalAgentInboundSales + additionalAgentTransferSales) * additionalAgentSalesMultiplier;
-      const totalSales = startingAgentTotalSales + additionalAgentTotalSales;
+      // Calculate total daily households with realistic reduction
+      const startingAgentDailyHouseholds = (startingAgentDailyInboundHouseholds + startingAgentDailyTransferHouseholds) * startingAgentMultiplier;
+      const additionalAgentDailyHouseholds = (additionalAgentDailyInboundHouseholds + additionalAgentDailyTransferHouseholds) * additionalAgentMultiplier;
+      const totalDailyHouseholds = startingAgentDailyHouseholds + additionalAgentDailyHouseholds;
       
-      const issuedSales = totalSales * ISSUANCE_RATE;
+      // Apply apps to issue rate
+      const dailyIssuedHouseholds = totalDailyHouseholds * ISSUANCE_RATE;
       
-      const autoRevenue = (issuedSales * AUTO_MIX) * AUTO_PREMIUM * (autoComm / 100);
-      const homeRevenue = (issuedSales * HOME_MIX) * HOME_PREMIUM * (homeComm / 100);
-      const totalRevenue = autoRevenue + homeRevenue;
+      // Calculate daily autos (1.5 per household)
+      const dailyAutos = dailyIssuedHouseholds * AUTOS_PER_HOUSEHOLD;
       
-      const totalInboundCalls = startingAgentInboundCalls + additionalAgentInboundCalls;
-      const totalTransferCalls = startingAgentTransferCalls + additionalAgentTransferCalls;
-      const callCost = (totalInboundCalls * costInbound) + (totalTransferCalls * costTransfer);
-      const agentComp = 0; // Based on Excel: AgentComp per hour = 0
+      // Calculate daily fire/home policies (25% of households)
+      const dailyFireHomePolicies = dailyIssuedHouseholds * MULTILINE_PERCENTAGE;
+      
+      // Calculate daily premiums
+      const dailyAutoPremium = dailyAutos * AUTO_PREMIUM;
+      const dailyFireHomePremium = dailyFireHomePolicies * HOME_PREMIUM;
+      
+      // Calculate daily commissions
+      const dailyAutoCommission = dailyAutoPremium * (autoComm / 100);
+      const dailyFireHomeCommission = dailyFireHomePremium * (homeComm / 100);
+      const dailyTotalCommission = dailyAutoCommission + dailyFireHomeCommission;
+      
+      // Calculate monthly totals
+      const monthlyIssuedHouseholds = dailyIssuedHouseholds * WORKING_DAYS;
+      const monthlyAutos = dailyAutos * WORKING_DAYS;
+      const monthlyFireHomePolicies = dailyFireHomePolicies * WORKING_DAYS;
+      const monthlyAutoPremium = dailyAutoPremium * WORKING_DAYS;
+      const monthlyFireHomePremium = dailyFireHomePremium * WORKING_DAYS;
+      const monthlyAutoCommission = dailyAutoCommission * WORKING_DAYS;
+      const monthlyFireHomeCommission = dailyFireHomeCommission * WORKING_DAYS;
+      const monthlyTotalCommission = dailyTotalCommission * WORKING_DAYS;
+      
+      // Calculate costs
+      const totalDailyInboundCalls = startingAgentDailyInbound + additionalAgentDailyInbound;
+      const totalDailyTransferCalls = startingAgentDailyTransfer + additionalAgentDailyTransfer;
+      const monthlyInboundCalls = totalDailyInboundCalls * WORKING_DAYS;
+      const monthlyTransferCalls = totalDailyTransferCalls * WORKING_DAYS;
+      const callCost = (monthlyInboundCalls * costInbound) + (monthlyTransferCalls * costTransfer);
+      const agentComp = 0;
       const totalCost = callCost + agentComp;
       
-      const netProfit = totalRevenue - totalCost;
-      const totalPremium = (issuedSales * AUTO_MIX * AUTO_PREMIUM) + (issuedSales * HOME_MIX * HOME_PREMIUM);
+      const netProfit = monthlyTotalCommission - totalCost;
+      const totalPremium = monthlyAutoPremium + monthlyFireHomePremium;
       
       data.push({
         month,
         totalAgents,
-        issuedSales,
+        issuedSales: monthlyIssuedHouseholds,
         totalPremium,
-        totalRevenue,
+        totalRevenue: monthlyTotalCommission,
         callCost,
         agentComp,
         totalCost,
