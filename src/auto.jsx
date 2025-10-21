@@ -165,15 +165,14 @@ const FinancialDashboard = () => {
     const year2Residuals = year1Revenue * RETENTION_YEAR_3;
     const year3Residuals = year2Revenue * RETENTION_YEAR_3;
     
-    // Add residual income to the appropriate year's revenue
-    const year2RevenueWithResiduals = year2Revenue + year2Residuals;
-    const year2Profit = year2RevenueWithResiduals - year2Cost;
+    // Year 2 revenue already includes residuals from monthly calculation, so don't add again
+    const year2Profit = year2Revenue - year2Cost;
     
     return {
       year1Revenue,
       year1Cost,
       year1Profit,
-      year2Revenue: year2RevenueWithResiduals,
+      year2Revenue,
       year2Cost,
       year2Profit,
       year2Residuals,
