@@ -17,6 +17,12 @@ const FinancialDashboard = () => {
   // CSR/Account Manager States
   const [csrCount, setCsrCount] = useState(1);
   const [csrHourlyWage, setCsrHourlyWage] = useState(15);
+  const [csrStartMonth, setCsrStartMonth] = useState(1);
+  const [csrEndMonth, setCsrEndMonth] = useState(24);
+  
+  // Additional Cost States
+  const [eoCoverageCost, setEoCoverageCost] = useState(500);
+  const [softwareCost, setSoftwareCost] = useState(200);
 
   // Constants
   const WORKING_DAYS = 20.83;
@@ -115,9 +121,16 @@ const FinancialDashboard = () => {
       const monthlyInboundCalls = totalDailyInboundCalls * WORKING_DAYS;
       const monthlyTransferCalls = totalDailyTransferCalls * WORKING_DAYS;
       const callCost = (monthlyInboundCalls * costInbound) + (monthlyTransferCalls * costTransfer);
-      const csrCost = csrCount * csrHourlyWage * 8 * WORKING_DAYS; // 8 hours per day, 20.83 days per month
+      
+      // CSR cost only applies during selected months
+      const csrCost = (month >= csrStartMonth && month <= csrEndMonth) 
+        ? csrCount * csrHourlyWage * 8 * WORKING_DAYS 
+        : 0;
+      
       const salesAgentCommission = monthlyTotalCommission * 0.10; // 10% commission for sales agents
-      const totalCost = callCost + csrCost + salesAgentCommission;
+      const eoCost = eoCoverageCost; // Monthly E&O coverage cost
+      const softwareCostMonthly = softwareCost; // Monthly software cost
+      const totalCost = callCost + csrCost + salesAgentCommission + eoCost + softwareCostMonthly;
       
       // Calculate residual income for Year 2 (months 13-24)
       let residualIncome = 0;
@@ -142,12 +155,14 @@ const FinancialDashboard = () => {
         callCost,
         csrCost,
         salesAgentCommission,
+        eoCost,
+        softwareCost: softwareCostMonthly,
         totalCost,
         netProfit
       });
     }
     return data;
-  }, [startingAgents, additionalAgentsPerQuarter, callsPerDay, pctInbound, inboundConv, transferConv, autoComm, homeComm, costInbound, costTransfer, csrCount, csrHourlyWage]);
+  }, [startingAgents, additionalAgentsPerQuarter, callsPerDay, pctInbound, inboundConv, transferConv, autoComm, homeComm, costInbound, costTransfer, csrCount, csrHourlyWage, csrStartMonth, csrEndMonth, eoCoverageCost, softwareCost]);
 
   // Calculate KPIs
   const kpis = useMemo(() => {
@@ -227,23 +242,25 @@ const FinancialDashboard = () => {
   const formatNumber = (value) => Math.round(value).toLocaleString();
 
   return (
-    <div className="flex h-screen bg-gray-50 p-3 gap-3 overflow-hidden">
+    <div className="flex h-screen bg-gray-50 p-1 gap-1">
       {/* Input Panel */}
-      <div className="w-1/4 bg-white rounded-lg shadow-sm p-3">
-        <h2 className="text-lg font-bold text-gray-800 mb-3">Assumption Inputs</h2>
+      <div className="w-1/4 bg-white rounded shadow-sm p-1 overflow-y-auto">
+        <h2 className="text-xs font-bold text-gray-800 mb-1">Assumption Inputs</h2>
         
-        <div className="space-y-2">
-          <div className="border-b pb-1">
-            <h3 className="text-xs font-semibold text-gray-700 mb-1">Agency</h3>
+        <div className="space-y-1">
+          <div className="border-b pb-0.5">
+            <h3 className="text-xs font-semibold text-gray-700 mb-0.5">Agency</h3>
             <InputSlider label="Starting Agents (Q1)" value={startingAgents} onChange={setStartingAgents} min={1} max={20} />
             <InputSlider label="Additional Agents/Quarter" value={additionalAgentsPerQuarter} onChange={setAdditionalAgentsPerQuarter} min={0} max={20} />
             <InputSlider label="Calls/Agent/Day" value={callsPerDay} onChange={setCallsPerDay} min={5} max={30} />
           </div>
           
-          <div className="border-b pb-1">
-            <h3 className="text-xs font-semibold text-gray-700 mb-1">CSR/Account Manager</h3>
+          <div className="border-b pb-0.5">
+            <h3 className="text-xs font-semibold text-gray-700 mb-0.5">CSR/Account Manager</h3>
             <InputSlider label="Number of CSRs" value={csrCount} onChange={setCsrCount} min={0} max={10} />
             <InputNumber label="CSR Hourly Wage (8hrs/day)" value={csrHourlyWage} onChange={setCsrHourlyWage} prefix="$" />
+            <InputSlider label="CSR Start Month" value={csrStartMonth} onChange={setCsrStartMonth} min={1} max={24} />
+            <InputSlider label="CSR End Month" value={csrEndMonth} onChange={setCsrEndMonth} min={1} max={24} />
             <div className="text-xs text-gray-500 mt-1">
               <div>Q1: {startingAgents} agents</div>
               <div>Q2: {startingAgents + additionalAgentsPerQuarter} agents</div>
@@ -252,28 +269,34 @@ const FinancialDashboard = () => {
             </div>
           </div>
           
-          <div className="border-b pb-1">
-            <h3 className="text-xs font-semibold text-gray-700 mb-1">Lead Mix & Cost</h3>
+          <div className="border-b pb-0.5">
+            <h3 className="text-xs font-semibold text-gray-700 mb-0.5">Lead Mix & Cost</h3>
             <InputNumber label="Cost/Inbound Call" value={costInbound} onChange={setCostInbound} prefix="$" />
             <InputSlider label="% Inbounds" value={pctInbound} onChange={setPctInbound} min={0} max={100} suffix="%" />
             <InputNumber label="Cost/Live Transfer" value={costTransfer} onChange={setCostTransfer} prefix="$" />
             <div className="text-xs text-gray-500 mt-1">% Transfers: {100 - pctInbound}%</div>
           </div>
           
-          <div>
-            <h3 className="text-xs font-semibold text-gray-700 mb-1">Conversion & Commission</h3>
+          <div className="border-b pb-0.5">
+            <h3 className="text-xs font-semibold text-gray-700 mb-0.5">Conversion & Commission</h3>
             <InputSlider label="Inbound Conv. Rate" value={inboundConv} onChange={setInboundConv} min={1} max={30} suffix="%" />
             <InputSlider label="Transfer Conv. Rate" value={transferConv} onChange={setTransferConv} min={1} max={25} suffix="%" />
             <InputSlider label="Auto Commission" value={autoComm} onChange={setAutoComm} min={5} max={20} suffix="%" />
             <InputSlider label="Home Commission" value={homeComm} onChange={setHomeComm} min={5} max={20} suffix="%" />
           </div>
+          
+          <div>
+            <h3 className="text-xs font-semibold text-gray-700 mb-0.5">Additional Costs</h3>
+            <InputNumber label="E&O Coverage (Monthly)" value={eoCoverageCost} onChange={setEoCoverageCost} prefix="$" />
+            <InputNumber label="Software Cost (Monthly)" value={softwareCost} onChange={setSoftwareCost} prefix="$" />
+          </div>
         </div>
       </div>
 
       {/* Dashboard Panel */}
-      <div className="w-3/4 flex flex-col gap-3 overflow-hidden">
+      <div className="w-3/4 flex flex-col gap-1 overflow-hidden">
         {/* KPIs */}
-        <div className="grid grid-cols-4 gap-3">
+        <div className="grid grid-cols-4 gap-1">
           <KPICard title="Year 1 Revenue" value={formatCurrency(kpis.year1Revenue)} color="blue" />
           <KPICard title="Year 1 Costs" value={formatCurrency(kpis.year1Cost)} color="red" />
           <KPICard title="Year 1 Profit" value={formatCurrency(kpis.year1Profit)} color="green" />
@@ -285,8 +308,8 @@ const FinancialDashboard = () => {
         </div>
 
         {/* Chart */}
-        <div className="bg-white rounded-lg shadow-sm p-3 h-64">
-          <h3 className="text-sm font-semibold text-gray-700 mb-2">Monthly Performance (24 Months)</h3>
+        <div className="bg-white rounded shadow-sm p-1 h-32">
+          <h3 className="text-xs font-semibold text-gray-700 mb-0.5">Monthly Performance (24 Months)</h3>
           <ResponsiveContainer width="100%" height="90%">
             <BarChart data={chartData}>
               <CartesianGrid strokeDasharray="3 3" />
@@ -302,9 +325,9 @@ const FinancialDashboard = () => {
         </div>
 
         {/* Monthly Breakdown for First 6 Months */}
-        <div className="bg-white rounded-lg shadow-sm p-2">
-          <h3 className="text-xs font-semibold text-gray-700 mb-1">First 6 Months - Cashflow Analysis</h3>
-          <div className="overflow-x-auto">
+        <div className="bg-white rounded shadow-sm p-1 flex-1 overflow-hidden">
+          <h3 className="text-xs font-semibold text-gray-700 mb-0.5">First 6 Months - Cashflow Analysis</h3>
+          <div className="overflow-auto h-full">
             <table className="w-full text-xs">
             <thead className="bg-gray-50">
               <tr>
@@ -315,6 +338,8 @@ const FinancialDashboard = () => {
                 <th className="px-1 py-0.5 text-right text-xs">Residual</th>
                 <th className="px-1 py-0.5 text-right text-xs">Call Cost</th>
                 <th className="px-1 py-0.5 text-right text-xs">CSR Cost</th>
+                <th className="px-1 py-0.5 text-right text-xs">E&O Cost</th>
+                <th className="px-1 py-0.5 text-right text-xs">Software</th>
                 <th className="px-1 py-0.5 text-right text-xs">Sales Comm</th>
                 <th className="px-1 py-0.5 text-right text-xs">Total Cost</th>
                 <th className="px-1 py-0.5 text-right text-xs">Net Profit</th>
@@ -333,6 +358,8 @@ const FinancialDashboard = () => {
                     <td className="px-1 py-0.5 text-right text-xs">${Math.round(month.residualIncome || 0).toLocaleString()}</td>
                     <td className="px-1 py-0.5 text-right text-xs">${Math.round(month.callCost).toLocaleString()}</td>
                     <td className="px-1 py-0.5 text-right text-xs">${Math.round(month.csrCost).toLocaleString()}</td>
+                    <td className="px-1 py-0.5 text-right text-xs">${Math.round(month.eoCost).toLocaleString()}</td>
+                    <td className="px-1 py-0.5 text-right text-xs">${Math.round(month.softwareCost).toLocaleString()}</td>
                     <td className="px-1 py-0.5 text-right text-xs">${Math.round(month.salesAgentCommission).toLocaleString()}</td>
                     <td className="px-1 py-0.5 text-right text-xs">${Math.round(month.totalCost).toLocaleString()}</td>
                     <td className={`px-1 py-0.5 text-right text-xs ${month.netProfit >= 0 ? 'text-green-600' : 'text-red-600'}`}>
@@ -350,7 +377,7 @@ const FinancialDashboard = () => {
         </div>
 
         {/* Tables */}
-        <div className="grid grid-cols-2 gap-3 flex-1 overflow-hidden">
+        <div className="grid grid-cols-2 gap-1 flex-1 overflow-hidden">
           <SummaryTable title="Year 1 Summary" data={year1Summary} />
           <SummaryTable title="Year 2 Summary" data={year2Summary} />
         </div>
@@ -360,8 +387,8 @@ const FinancialDashboard = () => {
 };
 
 const InputSlider = ({ label, value, onChange, min, max, suffix = '' }) => (
-  <div className="mb-2">
-    <div className="flex justify-between text-xs mb-1">
+  <div className="mb-1">
+    <div className="flex justify-between text-xs mb-0.5">
       <span className="text-gray-700">{label}</span>
       <span className="font-semibold text-gray-900">{value}{suffix}</span>
     </div>
@@ -371,21 +398,21 @@ const InputSlider = ({ label, value, onChange, min, max, suffix = '' }) => (
       max={max}
       value={value}
       onChange={(e) => onChange(Number(e.target.value))}
-      className="w-full h-1.5 bg-gray-200 rounded-lg cursor-pointer"
+      className="w-full h-1 bg-gray-200 rounded cursor-pointer"
     />
   </div>
 );
 
 const InputNumber = ({ label, value, onChange, prefix = '' }) => (
-  <div className="mb-2">
-    <label className="text-xs text-gray-700 block mb-1">{label}</label>
+  <div className="mb-1">
+    <label className="text-xs text-gray-700 block mb-0.5">{label}</label>
     <div className="flex items-center">
       {prefix && <span className="text-xs text-gray-500 mr-1">{prefix}</span>}
       <input
         type="number"
         value={value}
         onChange={(e) => onChange(Number(e.target.value))}
-        className="w-full px-2 py-1 text-xs border border-gray-300 rounded focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
+        className="w-full px-1 py-0.5 text-xs border border-gray-300 rounded focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
       />
     </div>
   </div>
@@ -401,36 +428,36 @@ const KPICard = ({ title, value, color }) => {
   };
   
   return (
-    <div className={`${colorMap[color]} border rounded-lg p-3`}>
+    <div className={`${colorMap[color]} border rounded p-1`}>
       <div className="text-xs font-medium opacity-75">{title}</div>
-      <div className="text-xl font-bold mt-1">{value}</div>
+      <div className="text-xs font-bold mt-0.5">{value}</div>
     </div>
   );
 };
 
 const SummaryTable = ({ title, data }) => (
-  <div className="bg-white rounded-lg shadow-sm p-3 overflow-auto">
-    <h3 className="text-sm font-semibold text-gray-700 mb-2">{title}</h3>
+  <div className="bg-white rounded shadow-sm p-1 overflow-auto">
+    <h3 className="text-xs font-semibold text-gray-700 mb-0.5">{title}</h3>
     <table className="w-full text-xs">
       <thead className="bg-gray-50">
         <tr>
-          <th className="px-1 py-1 text-left">Period</th>
-          <th className="px-1 py-1 text-right">Policies</th>
-          <th className="px-1 py-1 text-right">Premium</th>
-          <th className="px-1 py-1 text-right">Revenue</th>
-          <th className="px-1 py-1 text-right">Cost</th>
-          <th className="px-1 py-1 text-right">Profit</th>
+          <th className="px-1 py-0.5 text-left text-xs">Period</th>
+          <th className="px-1 py-0.5 text-right text-xs">Policies</th>
+          <th className="px-1 py-0.5 text-right text-xs">Premium</th>
+          <th className="px-1 py-0.5 text-right text-xs">Revenue</th>
+          <th className="px-1 py-0.5 text-right text-xs">Cost</th>
+          <th className="px-1 py-0.5 text-right text-xs">Profit</th>
         </tr>
       </thead>
       <tbody>
         {data.map((row, idx) => (
           <tr key={idx} className={row.name === 'Total' ? 'font-semibold border-t-2 bg-gray-50' : 'border-t'}>
-            <td className="px-1 py-1">{row.name}</td>
-            <td className="px-1 py-1 text-right">{Math.round(row.issuedSales).toLocaleString()}</td>
-            <td className="px-1 py-1 text-right">${Math.round(row.totalPremium / 1000)}k</td>
-            <td className="px-1 py-1 text-right">${Math.round(row.totalRevenue / 1000)}k</td>
-            <td className="px-1 py-1 text-right">${Math.round(row.totalCost / 1000)}k</td>
-            <td className="px-1 py-1 text-right">${Math.round(row.netProfit / 1000)}k</td>
+            <td className="px-1 py-0.5 text-xs">{row.name}</td>
+            <td className="px-1 py-0.5 text-right text-xs">{Math.round(row.issuedSales).toLocaleString()}</td>
+            <td className="px-1 py-0.5 text-right text-xs">${Math.round(row.totalPremium / 1000)}k</td>
+            <td className="px-1 py-0.5 text-right text-xs">${Math.round(row.totalRevenue / 1000)}k</td>
+            <td className="px-1 py-0.5 text-right text-xs">${Math.round(row.totalCost / 1000)}k</td>
+            <td className="px-1 py-0.5 text-right text-xs">${Math.round(row.netProfit / 1000)}k</td>
           </tr>
         ))}
       </tbody>
