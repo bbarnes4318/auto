@@ -250,17 +250,17 @@ const FinancialDashboard = () => {
         <div className="space-y-1">
           <div className="border-b pb-0.5">
             <h3 className="text-xs font-semibold text-gray-700 mb-0.5">Agency</h3>
-            <InputSlider label="Starting Agents (Q1)" value={startingAgents} onChange={setStartingAgents} min={1} max={20} />
-            <InputSlider label="Additional Agents/Quarter" value={additionalAgentsPerQuarter} onChange={setAdditionalAgentsPerQuarter} min={0} max={20} />
-            <InputSlider label="Calls/Agent/Day" value={callsPerDay} onChange={setCallsPerDay} min={5} max={30} />
+            <InputSlider label="Starting Agents (Q1)" value={startingAgents} onChange={setStartingAgents} min={1} max={20} helpText="Number of sales agents starting in Quarter 1" />
+            <InputSlider label="Additional Agents/Quarter" value={additionalAgentsPerQuarter} onChange={setAdditionalAgentsPerQuarter} min={0} max={20} helpText="New agents hired each quarter after Q1" />
+            <InputSlider label="Calls/Agent/Day" value={callsPerDay} onChange={setCallsPerDay} min={5} max={30} helpText="Average number of calls each agent makes per day" />
           </div>
           
           <div className="border-b pb-0.5">
             <h3 className="text-xs font-semibold text-gray-700 mb-0.5">CSR/Account Manager</h3>
-            <InputSlider label="Number of CSRs" value={csrCount} onChange={setCsrCount} min={0} max={10} />
-            <InputNumber label="CSR Hourly Wage (8hrs/day)" value={csrHourlyWage} onChange={setCsrHourlyWage} prefix="$" />
-            <InputSlider label="CSR Start Month" value={csrStartMonth} onChange={setCsrStartMonth} min={1} max={24} />
-            <InputSlider label="CSR End Month" value={csrEndMonth} onChange={setCsrEndMonth} min={1} max={24} />
+            <InputSlider label="Number of CSRs" value={csrCount} onChange={setCsrCount} min={0} max={10} helpText="Customer Service Representatives for account management" />
+            <InputNumber label="CSR Hourly Wage (8hrs/day)" value={csrHourlyWage} onChange={setCsrHourlyWage} prefix="$" helpText="Hourly wage for CSR staff (8 hours per day)" />
+            <InputSlider label="CSR Start Month" value={csrStartMonth} onChange={setCsrStartMonth} min={1} max={24} helpText="First month CSR costs begin" />
+            <InputSlider label="CSR End Month" value={csrEndMonth} onChange={setCsrEndMonth} min={1} max={24} helpText="Last month CSR costs apply" />
             <div className="text-xs text-gray-500 mt-1">
               <div>Q1: {startingAgents} agents</div>
               <div>Q2: {startingAgents + additionalAgentsPerQuarter} agents</div>
@@ -271,24 +271,24 @@ const FinancialDashboard = () => {
           
           <div className="border-b pb-0.5">
             <h3 className="text-xs font-semibold text-gray-700 mb-0.5">Lead Mix & Cost</h3>
-            <InputNumber label="Cost/Inbound Call" value={costInbound} onChange={setCostInbound} prefix="$" />
-            <InputSlider label="% Inbounds" value={pctInbound} onChange={setPctInbound} min={0} max={100} suffix="%" />
-            <InputNumber label="Cost/Live Transfer" value={costTransfer} onChange={setCostTransfer} prefix="$" />
+            <InputNumber label="Cost/Inbound Call" value={costInbound} onChange={setCostInbound} prefix="$" helpText="Cost per inbound lead/call received" />
+            <InputSlider label="% Inbounds" value={pctInbound} onChange={setPctInbound} min={0} max={100} suffix="%" helpText="Percentage of calls that are inbound vs transfers" />
+            <InputNumber label="Cost/Live Transfer" value={costTransfer} onChange={setCostTransfer} prefix="$" helpText="Cost per live transfer call to agents" />
             <div className="text-xs text-gray-500 mt-1">% Transfers: {100 - pctInbound}%</div>
           </div>
           
           <div className="border-b pb-0.5">
             <h3 className="text-xs font-semibold text-gray-700 mb-0.5">Conversion & Commission</h3>
-            <InputSlider label="Inbound Conv. Rate" value={inboundConv} onChange={setInboundConv} min={1} max={30} suffix="%" />
-            <InputSlider label="Transfer Conv. Rate" value={transferConv} onChange={setTransferConv} min={1} max={25} suffix="%" />
-            <InputSlider label="Auto Commission" value={autoComm} onChange={setAutoComm} min={5} max={20} suffix="%" />
-            <InputSlider label="Home Commission" value={homeComm} onChange={setHomeComm} min={5} max={20} suffix="%" />
+            <InputSlider label="Inbound Conv. Rate" value={inboundConv} onChange={setInboundConv} min={1} max={30} suffix="%" helpText="Percentage of inbound calls that convert to sales" />
+            <InputSlider label="Transfer Conv. Rate" value={transferConv} onChange={setTransferConv} min={1} max={25} suffix="%" helpText="Percentage of transfer calls that convert to sales" />
+            <InputSlider label="Auto Commission" value={autoComm} onChange={setAutoComm} min={5} max={20} suffix="%" helpText="Commission rate on auto insurance policies" />
+            <InputSlider label="Home Commission" value={homeComm} onChange={setHomeComm} min={5} max={20} suffix="%" helpText="Commission rate on home/fire insurance policies" />
           </div>
           
           <div>
             <h3 className="text-xs font-semibold text-gray-700 mb-0.5">Additional Costs</h3>
-            <InputNumber label="E&O Coverage (Monthly)" value={eoCoverageCost} onChange={setEoCoverageCost} prefix="$" />
-            <InputNumber label="Software Cost (Monthly)" value={softwareCost} onChange={setSoftwareCost} prefix="$" />
+            <InputNumber label="E&O Coverage (Monthly)" value={eoCoverageCost} onChange={setEoCoverageCost} prefix="$" helpText="Monthly Errors & Omissions insurance coverage cost" />
+            <InputNumber label="Software Cost (Monthly)" value={softwareCost} onChange={setSoftwareCost} prefix="$" helpText="Monthly software licensing and technology costs" />
           </div>
         </div>
       </div>
@@ -386,7 +386,7 @@ const FinancialDashboard = () => {
   );
 };
 
-const InputSlider = ({ label, value, onChange, min, max, suffix = '' }) => (
+const InputSlider = ({ label, value, onChange, min, max, suffix = '', helpText = '' }) => (
   <div className="mb-1">
     <div className="flex justify-between text-xs mb-0.5">
       <span className="text-gray-700">{label}</span>
@@ -399,11 +399,13 @@ const InputSlider = ({ label, value, onChange, min, max, suffix = '' }) => (
       value={value}
       onChange={(e) => onChange(Number(e.target.value))}
       className="w-full h-1 bg-gray-200 rounded cursor-pointer"
+      title={helpText}
     />
+    {helpText && <div className="text-xs text-gray-500 mt-0.5">{helpText}</div>}
   </div>
 );
 
-const InputNumber = ({ label, value, onChange, prefix = '' }) => (
+const InputNumber = ({ label, value, onChange, prefix = '', helpText = '' }) => (
   <div className="mb-1">
     <label className="text-xs text-gray-700 block mb-0.5">{label}</label>
     <div className="flex items-center">
@@ -413,8 +415,10 @@ const InputNumber = ({ label, value, onChange, prefix = '' }) => (
         value={value}
         onChange={(e) => onChange(Number(e.target.value))}
         className="w-full px-1 py-0.5 text-xs border border-gray-300 rounded focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
+        title={helpText}
       />
     </div>
+    {helpText && <div className="text-xs text-gray-500 mt-0.5">{helpText}</div>}
   </div>
 );
 
