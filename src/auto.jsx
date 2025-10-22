@@ -219,9 +219,10 @@ const FinancialDashboard = () => {
     const year2Revenue = year2Data.reduce((sum, m) => sum + m.totalRevenue, 0);
     const year2Cost = year2Data.reduce((sum, m) => sum + m.totalCost, 0);
     
-    // Calculate residual income from previous year
-    const year2Residuals = year1Revenue * RETENTION_YEAR_3;
-    const year3Residuals = year2Revenue * RETENTION_YEAR_3;
+    // Calculate residual income from previous year using dynamic retention rate
+    const currentRetentionRate = monthlyData[0]?.retentionRate || 0.75;
+    const year2Residuals = year1Revenue * currentRetentionRate;
+    const year3Residuals = year2Revenue * currentRetentionRate;
     
     // Year 2 revenue already includes residuals from monthly calculation, so don't add again
     const year2Profit = year2Revenue - year2Cost;
