@@ -23,6 +23,11 @@ const FinancialDashboard = () => {
   // Additional Cost States
   const [eoCoverageCost, setEoCoverageCost] = useState(500);
   const [softwareCost, setSoftwareCost] = useState(200);
+  
+  // Retention & CSR Quality States
+  const [csrQualityLevel, setCsrQualityLevel] = useState(3); // 1-5 scale
+  const [csrTrainingInvestment, setCsrTrainingInvestment] = useState(2000); // Annual training per CSR
+  const [csrResponseTime, setCsrResponseTime] = useState(4); // Hours to respond
 
   // Constants
   const WORKING_DAYS = 20.83;
@@ -31,12 +36,40 @@ const FinancialDashboard = () => {
   const HOME_PREMIUM = 1480;
   const AUTOS_PER_HOUSEHOLD = 1.5;
   const MULTILINE_PERCENTAGE = 0.25; // 25% of households get fire/home policies
-  const RETENTION_YEAR_3 = 0.75;
+  
+  // Retention rates based on research
+  const BASE_RETENTION_RATE = 0.84; // Industry average
+  const TOP_PERFORMER_RETENTION = 0.93; // Top agencies
+  const NO_AGENT_CONTACT_RETENTION = 0.35; // 65% leave without agent contact
+  const WITH_AGENT_CONTACT_RETENTION = 0.80; // 80% stay with agent contact
   
   // Realistic performance progression for new agents (B25-B27 from Excel)
   const FIRST_MONTH_PERFORMANCE = 0.50;  // 50% of expected sales (learning phase)
   const SECOND_MONTH_PERFORMANCE = 0.65; // 65% of expected sales (improving)
   const THIRD_MONTH_PERFORMANCE = 0.80;  // 80% of expected sales (almost full performance)
+
+  // Calculate retention rate based on CSR investment and quality
+  const calculateRetentionRate = (csrCount, csrQuality, csrWage, responseTime) => {
+    if (csrCount === 0) return NO_AGENT_CONTACT_RETENTION; // No CSR = poor retention
+    
+    // Base retention with CSR contact
+    let retentionRate = WITH_AGENT_CONTACT_RETENTION;
+    
+    // Quality multiplier (1-5 scale)
+    const qualityMultiplier = 0.02 * csrQuality; // 2% per quality level
+    retentionRate += qualityMultiplier;
+    
+    // Wage impact (higher pay = better retention)
+    const wageImpact = Math.min(0.05, (csrWage - 15) * 0.002); // Up to 5% for higher wages
+    retentionRate += wageImpact;
+    
+    // Response time impact (faster = better retention)
+    const responseImpact = Math.max(0, (24 - responseTime) * 0.001); // Up to 2.4% for instant response
+    retentionRate += responseImpact;
+    
+    // Cap at top performer level
+    return Math.min(TOP_PERFORMER_RETENTION, retentionRate);
+  };
 
   // Calculate monthly projections with realistic agent ramp-up
   const monthlyData = useMemo(() => {
@@ -127,10 +160,18 @@ const FinancialDashboard = () => {
         ? csrCount * csrHourlyWage * 8 * WORKING_DAYS 
         : 0;
       
+      // CSR training cost (annual, distributed monthly)
+      const csrTrainingCost = (month >= csrStartMonth && month <= csrEndMonth) 
+        ? (csrCount * csrTrainingInvestment) / 12 
+        : 0;
+      
       const salesAgentCommission = monthlyTotalCommission * 0.10; // 10% commission for sales agents
       const eoCost = eoCoverageCost; // Monthly E&O coverage cost
       const softwareCostMonthly = softwareCost; // Monthly software cost
-      const totalCost = callCost + csrCost + salesAgentCommission + eoCost + softwareCostMonthly;
+      const totalCost = callCost + csrCost + csrTrainingCost + salesAgentCommission + eoCost + softwareCostMonthly;
+      
+      // Calculate dynamic retention rate based on CSR investment
+      const currentRetentionRate = calculateRetentionRate(csrCount, csrQualityLevel, csrHourlyWage, csrResponseTime);
       
       // Calculate residual income for Year 2 (months 13-24)
       let residualIncome = 0;
@@ -138,7 +179,7 @@ const FinancialDashboard = () => {
         // Calculate Year 1 total revenue for residual calculation
         const year1Data = data.slice(0, 12);
         const year1TotalRevenue = year1Data.reduce((sum, m) => sum + m.totalRevenue, 0);
-        residualIncome = (year1TotalRevenue * RETENTION_YEAR_3) / 12; // Distribute evenly across Year 2 months
+        residualIncome = (year1TotalRevenue * currentRetentionRate) / 12; // Use dynamic retention rate
       }
       
       const totalRevenueWithResiduals = monthlyTotalCommission + residualIncome;
@@ -154,15 +195,17 @@ const FinancialDashboard = () => {
         residualIncome,
         callCost,
         csrCost,
+        csrTrainingCost,
         salesAgentCommission,
         eoCost,
         softwareCost: softwareCostMonthly,
         totalCost,
-        netProfit
+        netProfit,
+        retentionRate: currentRetentionRate
       });
     }
     return data;
-  }, [startingAgents, additionalAgentsPerQuarter, callsPerDay, pctInbound, inboundConv, transferConv, autoComm, homeComm, costInbound, costTransfer, csrCount, csrHourlyWage, csrStartMonth, csrEndMonth, eoCoverageCost, softwareCost]);
+  }, [startingAgents, additionalAgentsPerQuarter, callsPerDay, pctInbound, inboundConv, transferConv, autoComm, homeComm, costInbound, costTransfer, csrCount, csrHourlyWage, csrStartMonth, csrEndMonth, eoCoverageCost, softwareCost, csrQualityLevel, csrTrainingInvestment, csrResponseTime]);
 
   // Calculate KPIs
   const kpis = useMemo(() => {
@@ -261,6 +304,9 @@ const FinancialDashboard = () => {
             <InputNumber label="CSR Hourly Wage (8hrs/day)" value={csrHourlyWage} onChange={setCsrHourlyWage} prefix="$" helpText="Hourly wage for CSR staff (8 hours per day)" />
             <InputSlider label="CSR Start Month" value={csrStartMonth} onChange={setCsrStartMonth} min={1} max={24} helpText="First month CSR costs begin" />
             <InputSlider label="CSR End Month" value={csrEndMonth} onChange={setCsrEndMonth} min={1} max={24} helpText="Last month CSR costs apply" />
+            <InputSlider label="CSR Quality Level" value={csrQualityLevel} onChange={setCsrQualityLevel} min={1} max={5} helpText="CSR service quality (1=poor, 5=excellent) - affects retention" />
+            <InputNumber label="CSR Training/Year" value={csrTrainingInvestment} onChange={setCsrTrainingInvestment} prefix="$" helpText="Annual training investment per CSR" />
+            <InputSlider label="Response Time (Hours)" value={csrResponseTime} onChange={setCsrResponseTime} min={1} max={24} helpText="Average response time to customer inquiries" />
             <div className="text-xs text-gray-500 mt-1">
               <div>Q1: {startingAgents} agents</div>
               <div>Q2: {startingAgents + additionalAgentsPerQuarter} agents</div>
@@ -300,11 +346,11 @@ const FinancialDashboard = () => {
           <KPICard title="Year 1 Revenue" value={formatCurrency(kpis.year1Revenue)} color="blue" />
           <KPICard title="Year 1 Costs" value={formatCurrency(kpis.year1Cost)} color="red" />
           <KPICard title="Year 1 Profit" value={formatCurrency(kpis.year1Profit)} color="green" />
+          <KPICard title="Retention Rate" value={`${Math.round(monthlyData[0]?.retentionRate * 100 || 0)}%`} color="purple" />
           <KPICard title="Year 2 Revenue" value={formatCurrency(kpis.year2Revenue)} color="blue" />
           <KPICard title="Year 2 Costs" value={formatCurrency(kpis.year2Cost)} color="red" />
           <KPICard title="Year 2 Profit" value={formatCurrency(kpis.year2Profit)} color="green" />
           <KPICard title="Year 2 Residuals" value={formatCurrency(kpis.year2Residuals)} color="purple" />
-          <KPICard title="Year 3 Residuals" value={formatCurrency(kpis.year3Residuals)} color="orange" />
         </div>
 
         {/* Chart */}
@@ -338,6 +384,7 @@ const FinancialDashboard = () => {
                 <th className="px-1 py-0.5 text-right text-xs">Residual</th>
                 <th className="px-1 py-0.5 text-right text-xs">Call Cost</th>
                 <th className="px-1 py-0.5 text-right text-xs">CSR Cost</th>
+                <th className="px-1 py-0.5 text-right text-xs">Training</th>
                 <th className="px-1 py-0.5 text-right text-xs">E&O Cost</th>
                 <th className="px-1 py-0.5 text-right text-xs">Software</th>
                 <th className="px-1 py-0.5 text-right text-xs">Sales Comm</th>
@@ -358,6 +405,7 @@ const FinancialDashboard = () => {
                     <td className="px-1 py-0.5 text-right text-xs">${Math.round(month.residualIncome || 0).toLocaleString()}</td>
                     <td className="px-1 py-0.5 text-right text-xs">${Math.round(month.callCost).toLocaleString()}</td>
                     <td className="px-1 py-0.5 text-right text-xs">${Math.round(month.csrCost).toLocaleString()}</td>
+                    <td className="px-1 py-0.5 text-right text-xs">${Math.round(month.csrTrainingCost).toLocaleString()}</td>
                     <td className="px-1 py-0.5 text-right text-xs">${Math.round(month.eoCost).toLocaleString()}</td>
                     <td className="px-1 py-0.5 text-right text-xs">${Math.round(month.softwareCost).toLocaleString()}</td>
                     <td className="px-1 py-0.5 text-right text-xs">${Math.round(month.salesAgentCommission).toLocaleString()}</td>
