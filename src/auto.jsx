@@ -414,7 +414,7 @@ const FinancialDashboard = () => {
               max="30"
               className="w-full mt-1 rounded-md border border-gray-300 px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
             />
-            <p className="text-[11px] text-gray-500 mt-1">Average number of calls each agent makes per day</p>
+            <p className="text-[11px] text-gray-500 mt-1">Average number of calls each agent answers per day</p>
           </div>
         </section>
 
@@ -708,11 +708,11 @@ const FinancialDashboard = () => {
         </div>
 
         {/* Cashflow Chart */}
-        <div className="rounded-lg border border-gray-200 p-4 bg-white">
+        <div className="rounded-lg border border-gray-200 p-3 bg-white">
           <div className="text-sm font-semibold text-gray-800 mb-2">
             Monthly Cashflow – First 24 Months
           </div>
-          <ResponsiveContainer width="100%" height={200}>
+          <ResponsiveContainer width="100%" height={180}>
             <BarChart data={chartData}>
               <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
               <XAxis dataKey="month" tick={{ fontSize: 10 }} stroke="#6b7280" />
@@ -731,65 +731,65 @@ const FinancialDashboard = () => {
         </div>
 
         {/* Profit & Residuals Row */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
-          <div className="rounded-lg border border-gray-200 p-3 bg-white">
-            <div className="text-sm font-semibold text-gray-800 mb-2">Profit</div>
-            <div className="grid grid-cols-2 gap-3 text-sm">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-2">
+          <div className="rounded-lg border border-gray-200 p-2 bg-white">
+            <div className="text-sm font-semibold text-gray-800 mb-1">Profit</div>
+            <div className="grid grid-cols-2 gap-2 text-sm">
               <div>
                 <div className="text-[11px] uppercase font-medium text-gray-500">Year 1 Profit</div>
-                <div className="text-base font-bold text-gray-900">{formatCurrency(kpis.year1Profit)}</div>
+                <div className="text-sm font-bold text-gray-900">{formatCurrency(kpis.year1Profit)}</div>
               </div>
               <div>
                 <div className="text-[11px] uppercase font-medium text-gray-500">Year 2 Profit</div>
-                <div className="text-base font-bold text-gray-900">{formatCurrency(kpis.year2Profit)}</div>
+                <div className="text-sm font-bold text-gray-900">{formatCurrency(kpis.year2Profit)}</div>
               </div>
             </div>
           </div>
 
-          <div className="rounded-lg border border-gray-200 p-3 bg-white">
-            <div className="text-sm font-semibold text-gray-800 mb-2">Residuals</div>
-            <div className="grid grid-cols-2 gap-3 text-sm">
+          <div className="rounded-lg border border-gray-200 p-2 bg-white">
+            <div className="text-sm font-semibold text-gray-800 mb-1">Residuals</div>
+            <div className="grid grid-cols-2 gap-2 text-sm">
               <div>
                 <div className="text-[11px] uppercase font-medium text-gray-500">Year 2 Residuals</div>
-                <div className="text-base font-bold text-gray-900">{formatCurrency(kpis.year2Residuals)}</div>
+                <div className="text-sm font-bold text-gray-900">{formatCurrency(kpis.year2Residuals)}</div>
               </div>
               <div>
                 <div className="text-[11px] uppercase font-medium text-gray-500">Year 3 Residuals</div>
-                <div className="text-base font-bold text-gray-900">{formatCurrency(kpis.year3Residuals)}</div>
+                <div className="text-sm font-bold text-gray-900">{formatCurrency(kpis.year3Residuals)}</div>
               </div>
             </div>
-            <div className="text-[10px] text-gray-500 mt-2 italic">
+            <div className="text-[10px] text-gray-500 mt-1 italic">
               Year 2 residuals are already included in Year 2 profit.
             </div>
           </div>
         </div>
 
         {/* Year Summaries (Collapsible Tables) */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-2">
           <details className="rounded-lg border border-gray-200 bg-white">
-            <summary className="cursor-pointer select-none px-3 py-2 text-sm font-semibold text-gray-800 flex items-center justify-between hover:bg-gray-50">
+            <summary className="cursor-pointer select-none px-2 py-1 text-sm font-semibold text-gray-800 flex items-center justify-between hover:bg-gray-50">
               <span>Year 1 Summary</span>
               <span className="text-xs text-gray-500">Expand</span>
             </summary>
-            <div className="px-3 pb-3 overflow-x-auto max-h-48">
+            <div className="px-2 pb-2 overflow-x-auto max-h-40">
               <table className="w-full text-xs">
                 <thead className="bg-gray-50">
                   <tr>
-                    <th className="px-1 py-1 text-left text-xs">Period</th>
-                    <th className="px-1 py-1 text-right text-xs">Policies</th>
-                    <th className="px-1 py-1 text-right text-xs">Revenue</th>
-                    <th className="px-1 py-1 text-right text-xs">Cost</th>
-                    <th className="px-1 py-1 text-right text-xs">Profit</th>
+                    <th className="px-1 py-0.5 text-left text-xs">Period</th>
+                    <th className="px-1 py-0.5 text-right text-xs">Policies</th>
+                    <th className="px-1 py-0.5 text-right text-xs">Revenue</th>
+                    <th className="px-1 py-0.5 text-right text-xs">Cost</th>
+                    <th className="px-1 py-0.5 text-right text-xs">Profit</th>
                   </tr>
                 </thead>
                 <tbody>
                   {year1Summary.map((row, idx) => (
                     <tr key={idx} className={row.name === 'Total' ? 'font-semibold border-t-2 bg-gray-50' : 'border-t'}>
-                      <td className="px-1 py-1 text-xs">{row.name}</td>
-                      <td className="px-1 py-1 text-right text-xs">{formatNumber(row.issuedSales)}</td>
-                      <td className="px-1 py-1 text-right text-xs">{formatCurrency(row.totalRevenue)}</td>
-                      <td className="px-1 py-1 text-right text-xs">{formatCurrency(row.totalCost)}</td>
-                      <td className="px-1 py-1 text-right text-xs">{formatCurrency(row.netProfit)}</td>
+                      <td className="px-1 py-0.5 text-xs">{row.name}</td>
+                      <td className="px-1 py-0.5 text-right text-xs">{formatNumber(row.issuedSales)}</td>
+                      <td className="px-1 py-0.5 text-right text-xs">{formatCurrency(row.totalRevenue)}</td>
+                      <td className="px-1 py-0.5 text-right text-xs">{formatCurrency(row.totalCost)}</td>
+                      <td className="px-1 py-0.5 text-right text-xs">{formatCurrency(row.netProfit)}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -798,29 +798,29 @@ const FinancialDashboard = () => {
           </details>
 
           <details className="rounded-lg border border-gray-200 bg-white">
-            <summary className="cursor-pointer select-none px-3 py-2 text-sm font-semibold text-gray-800 flex items-center justify-between hover:bg-gray-50">
+            <summary className="cursor-pointer select-none px-2 py-1 text-sm font-semibold text-gray-800 flex items-center justify-between hover:bg-gray-50">
               <span>Year 2 Summary</span>
               <span className="text-xs text-gray-500">Expand</span>
             </summary>
-            <div className="px-3 pb-3 overflow-x-auto max-h-48">
+            <div className="px-2 pb-2 overflow-x-auto max-h-40">
               <table className="w-full text-xs">
                 <thead className="bg-gray-50">
                   <tr>
-                    <th className="px-1 py-1 text-left text-xs">Period</th>
-                    <th className="px-1 py-1 text-right text-xs">Policies</th>
-                    <th className="px-1 py-1 text-right text-xs">Revenue</th>
-                    <th className="px-1 py-1 text-right text-xs">Cost</th>
-                    <th className="px-1 py-1 text-right text-xs">Profit</th>
+                    <th className="px-1 py-0.5 text-left text-xs">Period</th>
+                    <th className="px-1 py-0.5 text-right text-xs">Policies</th>
+                    <th className="px-1 py-0.5 text-right text-xs">Revenue</th>
+                    <th className="px-1 py-0.5 text-right text-xs">Cost</th>
+                    <th className="px-1 py-0.5 text-right text-xs">Profit</th>
                   </tr>
                 </thead>
                 <tbody>
                   {year2Summary.map((row, idx) => (
                     <tr key={idx} className={row.name === 'Total' ? 'font-semibold border-t-2 bg-gray-50' : 'border-t'}>
-                      <td className="px-1 py-1 text-xs">{row.name}</td>
-                      <td className="px-1 py-1 text-right text-xs">{formatNumber(row.issuedSales)}</td>
-                      <td className="px-1 py-1 text-right text-xs">{formatCurrency(row.totalRevenue)}</td>
-                      <td className="px-1 py-1 text-right text-xs">{formatCurrency(row.totalCost)}</td>
-                      <td className="px-1 py-1 text-right text-xs">{formatCurrency(row.netProfit)}</td>
+                      <td className="px-1 py-0.5 text-xs">{row.name}</td>
+                      <td className="px-1 py-0.5 text-right text-xs">{formatNumber(row.issuedSales)}</td>
+                      <td className="px-1 py-0.5 text-right text-xs">{formatCurrency(row.totalRevenue)}</td>
+                      <td className="px-1 py-0.5 text-right text-xs">{formatCurrency(row.totalCost)}</td>
+                      <td className="px-1 py-0.5 text-right text-xs">{formatCurrency(row.netProfit)}</td>
                     </tr>
                   ))}
                 </tbody>
