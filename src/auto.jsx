@@ -281,13 +281,17 @@ const FinancialDashboard = () => {
     };
   }, [monthlyData]);
 
-  // Prepare chart data - show all 24 months
-  const chartData = monthlyData.map(m => ({
-    month: `M${m.month}`,
-    Revenue: Math.round(m.totalRevenue),
-    Cost: Math.round(m.totalCost),
-    Profit: Math.round(m.netProfit)
-  }));
+  // Prepare chart data - show all 24 months with cumulative profit
+  const chartData = monthlyData.map((m, index) => {
+    const cumulativeProfit = monthlyData.slice(0, index + 1).reduce((sum, month) => sum + month.netProfit, 0);
+    return {
+      month: `M${m.month}`,
+      Revenue: Math.round(m.totalRevenue),
+      Cost: Math.round(m.totalCost),
+      Profit: Math.round(m.netProfit),
+      'Cumulative Profit': Math.round(cumulativeProfit)
+    };
+  });
 
   // Calculate yearly summaries
   const getYearSummary = (startMonth, endMonth) => {
@@ -664,9 +668,9 @@ const FinancialDashboard = () => {
       </aside>
 
       {/* RIGHT SIDE: Results */}
-      <main className="flex-1 h-full overflow-hidden flex flex-col p-4 gap-4 bg-white">
+      <main className="flex-1 h-full overflow-hidden flex flex-col p-3 gap-3 bg-white">
         {/* Top KPI Cards Row */}
-        <div className="grid grid-cols-2 lg:grid-cols-5 gap-3">
+        <div className="grid grid-cols-2 lg:grid-cols-5 gap-2">
           <div className="rounded-lg border border-blue-200 p-3 flex flex-col bg-indigo-50">
             <div className="text-[10px] font-semibold uppercase tracking-wide text-indigo-700">
               Year 1 Revenue
@@ -708,7 +712,7 @@ const FinancialDashboard = () => {
           <div className="text-sm font-semibold text-gray-800 mb-2">
             Monthly Cashflow – First 24 Months
           </div>
-          <ResponsiveContainer width="100%" height={220}>
+          <ResponsiveContainer width="100%" height={200}>
             <BarChart data={chartData}>
               <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
               <XAxis dataKey="month" tick={{ fontSize: 10 }} stroke="#6b7280" />
@@ -721,15 +725,16 @@ const FinancialDashboard = () => {
               <Bar dataKey="Revenue" fill="#3b82f6" />
               <Bar dataKey="Cost" fill="#ef4444" />
               <Bar dataKey="Profit" fill="#10b981" />
+              <Bar dataKey="Cumulative Profit" fill="#8b5cf6" />
             </BarChart>
           </ResponsiveContainer>
         </div>
 
         {/* Profit & Residuals Row */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-          <div className="rounded-lg border border-gray-200 p-4 bg-white">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
+          <div className="rounded-lg border border-gray-200 p-3 bg-white">
             <div className="text-sm font-semibold text-gray-800 mb-2">Profit</div>
-            <div className="grid grid-cols-2 gap-4 text-sm">
+            <div className="grid grid-cols-2 gap-3 text-sm">
               <div>
                 <div className="text-[11px] uppercase font-medium text-gray-500">Year 1 Profit</div>
                 <div className="text-base font-bold text-gray-900">{formatCurrency(kpis.year1Profit)}</div>
@@ -741,9 +746,9 @@ const FinancialDashboard = () => {
             </div>
           </div>
 
-          <div className="rounded-lg border border-gray-200 p-4 bg-white">
+          <div className="rounded-lg border border-gray-200 p-3 bg-white">
             <div className="text-sm font-semibold text-gray-800 mb-2">Residuals</div>
-            <div className="grid grid-cols-2 gap-4 text-sm">
+            <div className="grid grid-cols-2 gap-3 text-sm">
               <div>
                 <div className="text-[11px] uppercase font-medium text-gray-500">Year 2 Residuals</div>
                 <div className="text-base font-bold text-gray-900">{formatCurrency(kpis.year2Residuals)}</div>
@@ -760,33 +765,31 @@ const FinancialDashboard = () => {
         </div>
 
         {/* Year Summaries (Collapsible Tables) */}
-        <div className="space-y-2">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
           <details className="rounded-lg border border-gray-200 bg-white">
-            <summary className="cursor-pointer select-none px-4 py-3 text-sm font-semibold text-gray-800 flex items-center justify-between hover:bg-gray-50">
+            <summary className="cursor-pointer select-none px-3 py-2 text-sm font-semibold text-gray-800 flex items-center justify-between hover:bg-gray-50">
               <span>Year 1 Summary</span>
               <span className="text-xs text-gray-500">Expand</span>
             </summary>
-            <div className="px-4 pb-4 overflow-x-auto">
+            <div className="px-3 pb-3 overflow-x-auto max-h-48">
               <table className="w-full text-xs">
                 <thead className="bg-gray-50">
                   <tr>
-                    <th className="px-2 py-2 text-left text-xs">Period</th>
-                    <th className="px-2 py-2 text-right text-xs">Policies</th>
-                    <th className="px-2 py-2 text-right text-xs">Premium</th>
-                    <th className="px-2 py-2 text-right text-xs">Revenue</th>
-                    <th className="px-2 py-2 text-right text-xs">Cost</th>
-                    <th className="px-2 py-2 text-right text-xs">Profit</th>
+                    <th className="px-1 py-1 text-left text-xs">Period</th>
+                    <th className="px-1 py-1 text-right text-xs">Policies</th>
+                    <th className="px-1 py-1 text-right text-xs">Revenue</th>
+                    <th className="px-1 py-1 text-right text-xs">Cost</th>
+                    <th className="px-1 py-1 text-right text-xs">Profit</th>
                   </tr>
                 </thead>
                 <tbody>
                   {year1Summary.map((row, idx) => (
                     <tr key={idx} className={row.name === 'Total' ? 'font-semibold border-t-2 bg-gray-50' : 'border-t'}>
-                      <td className="px-2 py-2 text-xs">{row.name}</td>
-                      <td className="px-2 py-2 text-right text-xs">{formatNumber(row.issuedSales)}</td>
-                      <td className="px-2 py-2 text-right text-xs">{formatCurrency(row.totalPremium)}</td>
-                      <td className="px-2 py-2 text-right text-xs">{formatCurrency(row.totalRevenue)}</td>
-                      <td className="px-2 py-2 text-right text-xs">{formatCurrency(row.totalCost)}</td>
-                      <td className="px-2 py-2 text-right text-xs">{formatCurrency(row.netProfit)}</td>
+                      <td className="px-1 py-1 text-xs">{row.name}</td>
+                      <td className="px-1 py-1 text-right text-xs">{formatNumber(row.issuedSales)}</td>
+                      <td className="px-1 py-1 text-right text-xs">{formatCurrency(row.totalRevenue)}</td>
+                      <td className="px-1 py-1 text-right text-xs">{formatCurrency(row.totalCost)}</td>
+                      <td className="px-1 py-1 text-right text-xs">{formatCurrency(row.netProfit)}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -795,31 +798,29 @@ const FinancialDashboard = () => {
           </details>
 
           <details className="rounded-lg border border-gray-200 bg-white">
-            <summary className="cursor-pointer select-none px-4 py-3 text-sm font-semibold text-gray-800 flex items-center justify-between hover:bg-gray-50">
+            <summary className="cursor-pointer select-none px-3 py-2 text-sm font-semibold text-gray-800 flex items-center justify-between hover:bg-gray-50">
               <span>Year 2 Summary</span>
               <span className="text-xs text-gray-500">Expand</span>
             </summary>
-            <div className="px-4 pb-4 overflow-x-auto">
+            <div className="px-3 pb-3 overflow-x-auto max-h-48">
               <table className="w-full text-xs">
                 <thead className="bg-gray-50">
                   <tr>
-                    <th className="px-2 py-2 text-left text-xs">Period</th>
-                    <th className="px-2 py-2 text-right text-xs">Policies</th>
-                    <th className="px-2 py-2 text-right text-xs">Premium</th>
-                    <th className="px-2 py-2 text-right text-xs">Revenue</th>
-                    <th className="px-2 py-2 text-right text-xs">Cost</th>
-                    <th className="px-2 py-2 text-right text-xs">Profit</th>
+                    <th className="px-1 py-1 text-left text-xs">Period</th>
+                    <th className="px-1 py-1 text-right text-xs">Policies</th>
+                    <th className="px-1 py-1 text-right text-xs">Revenue</th>
+                    <th className="px-1 py-1 text-right text-xs">Cost</th>
+                    <th className="px-1 py-1 text-right text-xs">Profit</th>
                   </tr>
                 </thead>
                 <tbody>
                   {year2Summary.map((row, idx) => (
                     <tr key={idx} className={row.name === 'Total' ? 'font-semibold border-t-2 bg-gray-50' : 'border-t'}>
-                      <td className="px-2 py-2 text-xs">{row.name}</td>
-                      <td className="px-2 py-2 text-right text-xs">{formatNumber(row.issuedSales)}</td>
-                      <td className="px-2 py-2 text-right text-xs">{formatCurrency(row.totalPremium)}</td>
-                      <td className="px-2 py-2 text-right text-xs">{formatCurrency(row.totalRevenue)}</td>
-                      <td className="px-2 py-2 text-right text-xs">{formatCurrency(row.totalCost)}</td>
-                      <td className="px-2 py-2 text-right text-xs">{formatCurrency(row.netProfit)}</td>
+                      <td className="px-1 py-1 text-xs">{row.name}</td>
+                      <td className="px-1 py-1 text-right text-xs">{formatNumber(row.issuedSales)}</td>
+                      <td className="px-1 py-1 text-right text-xs">{formatCurrency(row.totalRevenue)}</td>
+                      <td className="px-1 py-1 text-right text-xs">{formatCurrency(row.totalCost)}</td>
+                      <td className="px-1 py-1 text-right text-xs">{formatCurrency(row.netProfit)}</td>
                     </tr>
                   ))}
                 </tbody>
