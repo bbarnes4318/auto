@@ -1,33 +1,39 @@
 import React, { useState, useMemo } from 'react';
-import { LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 
 const FinancialDashboard = () => {
-  // Input States
+  // Core Input States
   const [startingAgents, setStartingAgents] = useState(4);
   const [additionalAgentsPerQuarter, setAdditionalAgentsPerQuarter] = useState(4);
   const [callsPerDay, setCallsPerDay] = useState(14);
+  
+  // Advanced Settings - CSR/Account Manager States
+  const [csrCount, setCsrCount] = useState(1);
+  const [csrHourlyWage, setCsrHourlyWage] = useState(15);
+  const [csrStartMonth, setCsrStartMonth] = useState(1);
+  const [csrEndMonth, setCsrEndMonth] = useState(24);
+  const [csrQualityLevel, setCsrQualityLevel] = useState(3); // 1-5 scale
+  const [csrTrainingInvestment, setCsrTrainingInvestment] = useState(2000); // Annual training per CSR
+  const [csrResponseTime, setCsrResponseTime] = useState(4); // Hours to respond
+  
+  // Advanced Settings - Lead Mix & Cost
   const [costInbound, setCostInbound] = useState(20);
   const [pctInbound, setPctInbound] = useState(50);
   const [costTransfer, setCostTransfer] = useState(7);
   const [inboundConv, setInboundConv] = useState(15);
   const [transferConv, setTransferConv] = useState(10);
+  
+  // Advanced Settings - Commission
   const [autoComm, setAutoComm] = useState(12);
   const [homeComm, setHomeComm] = useState(15);
   
-  // CSR/Account Manager States
-  const [csrCount, setCsrCount] = useState(1);
-  const [csrHourlyWage, setCsrHourlyWage] = useState(15);
-  const [csrStartMonth, setCsrStartMonth] = useState(1);
-  const [csrEndMonth, setCsrEndMonth] = useState(24);
-  
-  // Additional Cost States
+  // Advanced Settings - Additional Costs
   const [eoCoverageCost, setEoCoverageCost] = useState(500);
   const [softwareCost, setSoftwareCost] = useState(200);
   
-  // Retention & CSR Quality States
-  const [csrQualityLevel, setCsrQualityLevel] = useState(3); // 1-5 scale
-  const [csrTrainingInvestment, setCsrTrainingInvestment] = useState(2000); // Annual training per CSR
-  const [csrResponseTime, setCsrResponseTime] = useState(4); // Hours to respond
+  // Advanced Settings - Automation & Capacity
+  const [automationLevel, setAutomationLevel] = useState(3); // 1-4 scale (Manual to Advanced)
+  const [autoHireCSRs, setAutoHireCSRs] = useState(true); // Auto-hire when capacity reached
 
   // Constants
   const WORKING_DAYS = 20.83;
@@ -48,8 +54,19 @@ const FinancialDashboard = () => {
   const SECOND_MONTH_PERFORMANCE = 0.65; // 65% of expected sales (improving)
   const THIRD_MONTH_PERFORMANCE = 0.80;  // 80% of expected sales (almost full performance)
 
+  // Calculate CSR capacity based on automation level (from research)
+  const getCSRCapacity = (automationLevel) => {
+    const capacityRanges = {
+      1: 600,  // Manual/Traditional
+      2: 800,  // Moderate Automation
+      3: 1200, // Automated (recommended for remote)
+      4: 1400  // Advanced Technology
+    };
+    return capacityRanges[automationLevel] || 1200;
+  };
+
   // Calculate retention rate based on CSR investment and quality
-  const calculateRetentionRate = (csrCount, csrQuality, csrWage, responseTime) => {
+  const calculateRetentionRate = (csrCount, csrQuality, csrWage, responseTime, totalHouseholds, automationLevel) => {
     if (csrCount === 0) return NO_AGENT_CONTACT_RETENTION; // No CSR = poor retention
     
     // Base retention with CSR contact
@@ -67,13 +84,23 @@ const FinancialDashboard = () => {
     const responseImpact = Math.max(0, (24 - responseTime) * 0.001); // Up to 2.4% for instant response
     retentionRate += responseImpact;
     
+    // Capacity overload penalty (from research: service quality degrades when overloaded)
+    const maxCapacity = getCSRCapacity(automationLevel);
+    const capacityPerCSR = totalHouseholds / Math.max(1, csrCount);
+    if (capacityPerCSR > maxCapacity) {
+      const overloadPenalty = Math.min(0.15, (capacityPerCSR - maxCapacity) / maxCapacity * 0.3);
+      retentionRate -= overloadPenalty;
+    }
+    
     // Cap at top performer level
-    return Math.min(TOP_PERFORMER_RETENTION, retentionRate);
+    return Math.min(TOP_PERFORMER_RETENTION, Math.max(0.35, retentionRate));
   };
 
   // Calculate monthly projections with realistic agent ramp-up
   const monthlyData = useMemo(() => {
     const data = [];
+    let cumulativeHouseholds = 0;
+    let currentCSRCount = csrCount;
     
     for (let month = 1; month <= 24; month++) {
       const quarter = Math.ceil(month / 3);
@@ -148,6 +175,18 @@ const FinancialDashboard = () => {
       const monthlyFireHomeCommission = dailyFireHomeCommission * WORKING_DAYS;
       const monthlyTotalCommission = dailyTotalCommission * WORKING_DAYS;
       
+      // Update cumulative households
+      cumulativeHouseholds += monthlyIssuedHouseholds;
+      
+      // Auto-hire CSRs based on capacity (from research)
+      if (autoHireCSRs && month >= csrStartMonth) {
+        const maxCapacity = getCSRCapacity(automationLevel);
+        const requiredCSRs = Math.ceil(cumulativeHouseholds / maxCapacity);
+        if (requiredCSRs > currentCSRCount) {
+          currentCSRCount = requiredCSRs;
+        }
+      }
+      
       // Calculate costs
       const totalDailyInboundCalls = experiencedAgentDailyInbound + newAgentDailyInbound;
       const totalDailyTransferCalls = experiencedAgentDailyTransfer + newAgentDailyTransfer;
@@ -155,14 +194,14 @@ const FinancialDashboard = () => {
       const monthlyTransferCalls = totalDailyTransferCalls * WORKING_DAYS;
       const callCost = (monthlyInboundCalls * costInbound) + (monthlyTransferCalls * costTransfer);
       
-      // CSR cost only applies during selected months
+      // CSR cost only applies during selected months (use current CSR count)
       const csrCost = (month >= csrStartMonth && month <= csrEndMonth) 
-        ? csrCount * csrHourlyWage * 8 * WORKING_DAYS 
+        ? currentCSRCount * csrHourlyWage * 8 * WORKING_DAYS 
         : 0;
       
       // CSR training cost (annual, distributed monthly)
       const csrTrainingCost = (month >= csrStartMonth && month <= csrEndMonth) 
-        ? (csrCount * csrTrainingInvestment) / 12 
+        ? (currentCSRCount * csrTrainingInvestment) / 12 
         : 0;
       
       const salesAgentCommission = monthlyTotalCommission * 0.10; // 10% commission for sales agents
@@ -170,8 +209,8 @@ const FinancialDashboard = () => {
       const softwareCostMonthly = softwareCost; // Monthly software cost
       const totalCost = callCost + csrCost + csrTrainingCost + salesAgentCommission + eoCost + softwareCostMonthly;
       
-      // Calculate dynamic retention rate based on CSR investment
-      const currentRetentionRate = calculateRetentionRate(csrCount, csrQualityLevel, csrHourlyWage, csrResponseTime);
+      // Calculate dynamic retention rate based on CSR investment and capacity
+      const currentRetentionRate = calculateRetentionRate(currentCSRCount, csrQualityLevel, csrHourlyWage, csrResponseTime, cumulativeHouseholds, automationLevel);
       
       // Calculate residual income for Year 2 (months 13-24)
       let residualIncome = 0;
@@ -201,11 +240,14 @@ const FinancialDashboard = () => {
         softwareCost: softwareCostMonthly,
         totalCost,
         netProfit,
-        retentionRate: currentRetentionRate
+        retentionRate: currentRetentionRate,
+        csrCount: currentCSRCount,
+        cumulativeHouseholds,
+        capacityUtilization: cumulativeHouseholds / (currentCSRCount * getCSRCapacity(automationLevel))
       });
     }
     return data;
-  }, [startingAgents, additionalAgentsPerQuarter, callsPerDay, pctInbound, inboundConv, transferConv, autoComm, homeComm, costInbound, costTransfer, csrCount, csrHourlyWage, csrStartMonth, csrEndMonth, eoCoverageCost, softwareCost, csrQualityLevel, csrTrainingInvestment, csrResponseTime]);
+  }, [startingAgents, additionalAgentsPerQuarter, callsPerDay, pctInbound, inboundConv, transferConv, autoComm, homeComm, costInbound, costTransfer, csrCount, csrHourlyWage, csrStartMonth, csrEndMonth, eoCoverageCost, softwareCost, csrQualityLevel, csrTrainingInvestment, csrResponseTime, automationLevel, autoHireCSRs]);
 
   // Calculate KPIs
   const kpis = useMemo(() => {
@@ -285,84 +327,396 @@ const FinancialDashboard = () => {
   const formatCurrency = (value) => `$${Math.round(value).toLocaleString()}`;
   const formatNumber = (value) => Math.round(value).toLocaleString();
 
+  // Reset to defaults
+  const handleReset = () => {
+    setStartingAgents(4);
+    setAdditionalAgentsPerQuarter(4);
+    setCallsPerDay(14);
+    setCsrCount(1);
+    setCsrHourlyWage(15);
+    setCsrStartMonth(1);
+    setCsrEndMonth(24);
+    setCsrQualityLevel(3);
+    setCsrTrainingInvestment(2000);
+    setCsrResponseTime(4);
+    setCostInbound(20);
+    setPctInbound(50);
+    setCostTransfer(7);
+    setInboundConv(15);
+    setTransferConv(10);
+    setAutoComm(12);
+    setHomeComm(15);
+    setEoCoverageCost(500);
+    setSoftwareCost(200);
+    setAutomationLevel(3);
+    setAutoHireCSRs(true);
+  };
+
   return (
-    <div className="flex h-screen bg-gray-50 p-1 gap-1">
-      {/* Input Panel */}
-      <div className="w-1/4 bg-white rounded shadow-sm p-1 overflow-y-auto">
-        <h2 className="text-xs font-bold text-gray-800 mb-1">Assumption Inputs</h2>
-        
-        <div className="space-y-1">
-          <div className="border-b pb-0.5">
-            <h3 className="text-xs font-semibold text-gray-700 mb-0.5">Agency</h3>
-            <InputSlider label="Starting Agents (Q1)" value={startingAgents} onChange={setStartingAgents} min={1} max={20} helpText="Number of sales agents starting in Quarter 1" />
-            <InputSlider label="Additional Agents/Quarter" value={additionalAgentsPerQuarter} onChange={setAdditionalAgentsPerQuarter} min={0} max={20} helpText="New agents hired each quarter after Q1" />
-            <InputSlider label="Calls/Agent/Day" value={callsPerDay} onChange={setCallsPerDay} min={5} max={30} helpText="Average number of calls each agent makes per day" />
-          </div>
+    <div className="flex h-screen w-screen bg-white text-gray-900">
+      {/* LEFT SIDEBAR: Inputs */}
+      <aside className="w-[340px] min-w-[320px] max-w-[360px] h-full border-r border-gray-200 flex flex-col">
+        {/* Sidebar Header */}
+        <div className="p-4 border-b border-gray-200">
+          <h1 className="text-lg font-semibold">Assumptions</h1>
+          <p className="text-xs text-gray-500">Adjust inputs to see updated cashflow & profit</p>
+        </div>
+
+        {/* Core Inputs (Always Visible) */}
+        <section className="p-4 border-b border-gray-200">
+          <h2 className="text-sm font-semibold text-gray-800 mb-3">Core Inputs</h2>
           
-          <div className="border-b pb-0.5">
-            <h3 className="text-xs font-semibold text-gray-700 mb-0.5">CSR/Account Manager</h3>
-            <InputSlider label="Number of CSRs" value={csrCount} onChange={setCsrCount} min={0} max={10} helpText="Customer Service Representatives for account management" />
-            <InputNumber label="CSR Hourly Wage (8hrs/day)" value={csrHourlyWage} onChange={setCsrHourlyWage} prefix="$" helpText="Hourly wage for CSR staff (8 hours per day)" />
-            <InputSlider label="CSR Start Month" value={csrStartMonth} onChange={setCsrStartMonth} min={1} max={24} helpText="First month CSR costs begin" />
-            <InputSlider label="CSR End Month" value={csrEndMonth} onChange={setCsrEndMonth} min={1} max={24} helpText="Last month CSR costs apply" />
-            <InputSlider label="CSR Quality Level" value={csrQualityLevel} onChange={setCsrQualityLevel} min={1} max={5} helpText="CSR service quality (1=poor, 5=excellent) - affects retention" />
-            <InputNumber label="CSR Training/Year" value={csrTrainingInvestment} onChange={setCsrTrainingInvestment} prefix="$" helpText="Annual training investment per CSR" />
-            <InputSlider label="Response Time (Hours)" value={csrResponseTime} onChange={setCsrResponseTime} min={1} max={24} helpText="Average response time to customer inquiries" />
-            <div className="text-xs text-gray-500 mt-1">
-              <div>Q1: {startingAgents} agents</div>
-              <div>Q2: {startingAgents + additionalAgentsPerQuarter} agents</div>
-              <div>Q3: {startingAgents + (additionalAgentsPerQuarter * 2)} agents</div>
-              <div>Q4: {startingAgents + (additionalAgentsPerQuarter * 3)} agents</div>
+          <div className="mb-3">
+            <label className="text-xs font-medium text-gray-700 flex justify-between">
+              <span>Starting Agents (Q1)</span>
+              <span className="text-gray-400 text-[10px] uppercase tracking-wide"># agents</span>
+            </label>
+            <input
+              type="number"
+              value={startingAgents}
+              onChange={(e) => setStartingAgents(Number(e.target.value))}
+              min="1"
+              max="20"
+              className="w-full mt-1 rounded-md border border-gray-300 px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+            />
+          </div>
+
+          <div className="mb-3">
+            <label className="text-xs font-medium text-gray-700 flex justify-between">
+              <span>Additional Agents/Quarter</span>
+              <span className="text-gray-400 text-[10px] uppercase tracking-wide"># agents</span>
+            </label>
+            <input
+              type="number"
+              value={additionalAgentsPerQuarter}
+              onChange={(e) => setAdditionalAgentsPerQuarter(Number(e.target.value))}
+              min="0"
+              max="20"
+              className="w-full mt-1 rounded-md border border-gray-300 px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+            />
+            <p className="text-[11px] text-gray-500 mt-1">New agents added each quarter after Q1</p>
+          </div>
+
+          <div className="mb-3">
+            <label className="text-xs font-medium text-gray-700 flex justify-between">
+              <span>Calls/Agent/Day</span>
+              <span className="text-gray-400 text-[10px] uppercase tracking-wide"># calls</span>
+            </label>
+            <input
+              type="number"
+              value={callsPerDay}
+              onChange={(e) => setCallsPerDay(Number(e.target.value))}
+              min="5"
+              max="30"
+              className="w-full mt-1 rounded-md border border-gray-300 px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+            />
+            <p className="text-[11px] text-gray-500 mt-1">Average number of calls each agent makes per day</p>
+          </div>
+        </section>
+
+        {/* Advanced Settings (Collapsible) */}
+        <section className="p-4 flex-1 overflow-y-auto">
+          <details className="group border border-gray-200 rounded-lg">
+            <summary className="cursor-pointer select-none flex items-center justify-between p-3">
+              <span className="text-sm font-semibold text-gray-800">Advanced Settings</span>
+              <span className="text-xs text-gray-500 group-open:hidden">Show</span>
+              <span className="text-xs text-gray-500 hidden group-open:inline">Hide</span>
+            </summary>
+
+            <div className="px-3 pb-3 max-h-[40vh] overflow-y-auto">
+              {/* CSR / Service */}
+              <div className="mb-4">
+                <h3 className="text-xs font-medium text-gray-700 mb-2 uppercase tracking-wide">CSR / Service</h3>
+
+                <label className="text-[11px] font-medium text-gray-600 flex justify-between">
+                  <span>Number of CSRs</span>
+                </label>
+                <input
+                  type="number"
+                  value={csrCount}
+                  onChange={(e) => setCsrCount(Number(e.target.value))}
+                  min="0"
+                  max="10"
+                  className="w-full mb-2 rounded-md border border-gray-300 px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                />
+
+                <label className="text-[11px] font-medium text-gray-600 flex justify-between">
+                  <span>CSR Hourly Wage</span>
+                  <span className="text-gray-400">$/hour (8hrs/day)</span>
+                </label>
+                <input
+                  type="number"
+                  value={csrHourlyWage}
+                  onChange={(e) => setCsrHourlyWage(Number(e.target.value))}
+                  min="10"
+                  max="50"
+                  className="w-full mb-2 rounded-md border border-gray-300 px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                />
+
+                <label className="text-[11px] font-medium text-gray-600 flex justify-between">
+                  <span>CSR Quality Level</span>
+                  <span className="text-gray-400">1-5 (affects retention)</span>
+                </label>
+                <input
+                  type="number"
+                  value={csrQualityLevel}
+                  onChange={(e) => setCsrQualityLevel(Number(e.target.value))}
+                  min="1"
+                  max="5"
+                  className="w-full mb-2 rounded-md border border-gray-300 px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                />
+
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <label className="text-[11px] font-medium text-gray-600">CSR Start Month</label>
+                    <input
+                      type="number"
+                      value={csrStartMonth}
+                      onChange={(e) => setCsrStartMonth(Number(e.target.value))}
+                      min="1"
+                      max="24"
+                      className="w-full rounded-md border border-gray-300 px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-[11px] font-medium text-gray-600">CSR End Month</label>
+                    <input
+                      type="number"
+                      value={csrEndMonth}
+                      onChange={(e) => setCsrEndMonth(Number(e.target.value))}
+                      min="1"
+                      max="24"
+                      className="w-full rounded-md border border-gray-300 px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    />
+                  </div>
+                </div>
+
+                <label className="text-[11px] font-medium text-gray-600 mt-2 block">
+                  Avg Response Time to Customer (Hours)
+                </label>
+                <input
+                  type="number"
+                  value={csrResponseTime}
+                  onChange={(e) => setCsrResponseTime(Number(e.target.value))}
+                  min="1"
+                  max="24"
+                  className="w-full rounded-md border border-gray-300 px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                />
+
+                <label className="text-[11px] font-medium text-gray-600 mt-2 block">
+                  Annual Training per CSR ($)
+                </label>
+                <input
+                  type="number"
+                  value={csrTrainingInvestment}
+                  onChange={(e) => setCsrTrainingInvestment(Number(e.target.value))}
+                  min="0"
+                  max="10000"
+                  className="w-full rounded-md border border-gray-300 px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                />
+
+                <label className="text-[11px] font-medium text-gray-600 mt-2 block">
+                  Automation Level (1-4)
+                </label>
+                <input
+                  type="number"
+                  value={automationLevel}
+                  onChange={(e) => setAutomationLevel(Number(e.target.value))}
+                  min="1"
+                  max="4"
+                  className="w-full rounded-md border border-gray-300 px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                />
+                <p className="text-[10px] text-gray-500 mt-1">1=Manual(600 HH/CSR), 2=Moderate(800), 3=Automated(1200), 4=Advanced(1400)</p>
+
+                <div className="flex items-center space-x-2 mt-2">
+                  <input
+                    type="checkbox"
+                    id="autoHire"
+                    checked={autoHireCSRs}
+                    onChange={(e) => setAutoHireCSRs(e.target.checked)}
+                    className="rounded"
+                  />
+                  <label htmlFor="autoHire" className="text-[11px] text-gray-700">Auto-hire CSRs when capacity reached</label>
+                </div>
+              </div>
+
+              {/* Lead Mix & Cost */}
+              <div className="mb-4">
+                <h3 className="text-xs font-medium text-gray-700 mb-2 uppercase tracking-wide">Lead Mix & Cost</h3>
+
+                <label className="text-[11px] font-medium text-gray-600">Cost per Inbound Call ($)</label>
+                <input
+                  type="number"
+                  value={costInbound}
+                  onChange={(e) => setCostInbound(Number(e.target.value))}
+                  min="0"
+                  max="100"
+                  className="w-full mb-2 rounded-md border border-gray-300 px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                />
+
+                <label className="text-[11px] font-medium text-gray-600">% inbound (vs. transfers)</label>
+                <input
+                  type="number"
+                  value={pctInbound}
+                  onChange={(e) => setPctInbound(Number(e.target.value))}
+                  min="0"
+                  max="100"
+                  className="w-full mb-2 rounded-md border border-gray-300 px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                />
+                <p className="text-[10px] text-gray-500 mb-2">% Transfers: {100 - pctInbound}%</p>
+
+                <label className="text-[11px] font-medium text-gray-600">Cost per live transfer ($)</label>
+                <input
+                  type="number"
+                  value={costTransfer}
+                  onChange={(e) => setCostTransfer(Number(e.target.value))}
+                  min="0"
+                  max="100"
+                  className="w-full mb-2 rounded-md border border-gray-300 px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                />
+
+                <label className="text-[11px] font-medium text-gray-600">% inbound conversion rate</label>
+                <input
+                  type="number"
+                  value={inboundConv}
+                  onChange={(e) => setInboundConv(Number(e.target.value))}
+                  min="1"
+                  max="30"
+                  className="w-full mb-2 rounded-md border border-gray-300 px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                />
+
+                <label className="text-[11px] font-medium text-gray-600">% transfer conversion rate</label>
+                <input
+                  type="number"
+                  value={transferConv}
+                  onChange={(e) => setTransferConv(Number(e.target.value))}
+                  min="1"
+                  max="25"
+                  className="w-full rounded-md border border-gray-300 px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                />
+              </div>
+
+              {/* Commission */}
+              <div className="mb-4">
+                <h3 className="text-xs font-medium text-gray-700 mb-2 uppercase tracking-wide">Commission</h3>
+
+                <label className="text-[11px] font-medium text-gray-600">Auto Commission %</label>
+                <input
+                  type="number"
+                  value={autoComm}
+                  onChange={(e) => setAutoComm(Number(e.target.value))}
+                  min="5"
+                  max="20"
+                  className="w-full mb-2 rounded-md border border-gray-300 px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                />
+
+                <label className="text-[11px] font-medium text-gray-600">Home Commission %</label>
+                <input
+                  type="number"
+                  value={homeComm}
+                  onChange={(e) => setHomeComm(Number(e.target.value))}
+                  min="5"
+                  max="20"
+                  className="w-full rounded-md border border-gray-300 px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                />
+              </div>
+
+              {/* Additional Costs */}
+              <div className="mb-4">
+                <h3 className="text-xs font-medium text-gray-700 mb-2 uppercase tracking-wide">Additional Monthly Costs</h3>
+
+                <label className="text-[11px] font-medium text-gray-600">E&O Coverage ($)</label>
+                <input
+                  type="number"
+                  value={eoCoverageCost}
+                  onChange={(e) => setEoCoverageCost(Number(e.target.value))}
+                  min="0"
+                  max="5000"
+                  className="w-full mb-2 rounded-md border border-gray-300 px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                />
+
+                <label className="text-[11px] font-medium text-gray-600">Software Cost ($)</label>
+                <input
+                  type="number"
+                  value={softwareCost}
+                  onChange={(e) => setSoftwareCost(Number(e.target.value))}
+                  min="0"
+                  max="5000"
+                  className="w-full rounded-md border border-gray-300 px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                />
+              </div>
             </div>
+          </details>
+        </section>
+
+        {/* Actions at Bottom */}
+        <div className="mt-auto p-4 border-t border-gray-200 grid grid-cols-2 gap-2">
+          <button
+            onClick={handleReset}
+            className="text-xs font-medium rounded-md border border-gray-300 py-2 hover:bg-gray-50"
+          >
+            Reset
+          </button>
+          <button className="text-xs font-medium rounded-md bg-indigo-600 text-white py-2 hover:bg-indigo-700">
+            Save Scenario
+          </button>
+        </div>
+      </aside>
+
+      {/* RIGHT SIDE: Results */}
+      <main className="flex-1 h-full overflow-hidden flex flex-col p-4 gap-4 bg-white">
+        {/* Top KPI Cards Row */}
+        <div className="grid grid-cols-2 lg:grid-cols-5 gap-3">
+          <div className="rounded-lg border border-blue-200 p-3 flex flex-col bg-indigo-50">
+            <div className="text-[10px] font-semibold uppercase tracking-wide text-indigo-700">
+              Year 1 Revenue
+            </div>
+            <div className="text-lg font-bold text-gray-900">{formatCurrency(kpis.year1Revenue)}</div>
           </div>
-          
-          <div className="border-b pb-0.5">
-            <h3 className="text-xs font-semibold text-gray-700 mb-0.5">Lead Mix & Cost</h3>
-            <InputNumber label="Cost/Inbound Call" value={costInbound} onChange={setCostInbound} prefix="$" helpText="Cost per inbound lead/call received" />
-            <InputSlider label="% Inbounds" value={pctInbound} onChange={setPctInbound} min={0} max={100} suffix="%" helpText="Percentage of calls that are inbound vs transfers" />
-            <InputNumber label="Cost/Live Transfer" value={costTransfer} onChange={setCostTransfer} prefix="$" helpText="Cost per live transfer call to agents" />
-            <div className="text-xs text-gray-500 mt-1">% Transfers: {100 - pctInbound}%</div>
+
+          <div className="rounded-lg border border-red-200 p-3 flex flex-col bg-red-50">
+            <div className="text-[10px] font-semibold uppercase tracking-wide text-red-700">
+              Year 1 Costs
+            </div>
+            <div className="text-lg font-bold text-gray-900">{formatCurrency(kpis.year1Cost)}</div>
           </div>
-          
-          <div className="border-b pb-0.5">
-            <h3 className="text-xs font-semibold text-gray-700 mb-0.5">Conversion & Commission</h3>
-            <InputSlider label="Inbound Conv. Rate" value={inboundConv} onChange={setInboundConv} min={1} max={30} suffix="%" helpText="Percentage of inbound calls that convert to sales" />
-            <InputSlider label="Transfer Conv. Rate" value={transferConv} onChange={setTransferConv} min={1} max={25} suffix="%" helpText="Percentage of transfer calls that convert to sales" />
-            <InputSlider label="Auto Commission" value={autoComm} onChange={setAutoComm} min={5} max={20} suffix="%" helpText="Commission rate on auto insurance policies" />
-            <InputSlider label="Home Commission" value={homeComm} onChange={setHomeComm} min={5} max={20} suffix="%" helpText="Commission rate on home/fire insurance policies" />
+
+          <div className="rounded-lg border border-green-200 p-3 flex flex-col bg-green-50">
+            <div className="text-[10px] font-semibold uppercase tracking-wide text-green-700">
+              Year 1 Profit
+            </div>
+            <div className="text-lg font-bold text-gray-900">{formatCurrency(kpis.year1Profit)}</div>
           </div>
-          
-          <div>
-            <h3 className="text-xs font-semibold text-gray-700 mb-0.5">Additional Costs</h3>
-            <InputNumber label="E&O Coverage (Monthly)" value={eoCoverageCost} onChange={setEoCoverageCost} prefix="$" helpText="Monthly Errors & Omissions insurance coverage cost" />
-            <InputNumber label="Software Cost (Monthly)" value={softwareCost} onChange={setSoftwareCost} prefix="$" helpText="Monthly software licensing and technology costs" />
+
+          <div className="rounded-lg border border-teal-200 p-3 flex flex-col bg-teal-50">
+            <div className="text-[10px] font-semibold uppercase tracking-wide text-teal-700">
+              Retention Rate
+            </div>
+            <div className="text-lg font-bold text-gray-900">{Math.round((monthlyData[0]?.retentionRate || 0) * 100)}%</div>
+          </div>
+
+          <div className="rounded-lg border border-purple-200 p-3 flex flex-col bg-purple-50">
+            <div className="text-[10px] font-semibold uppercase tracking-wide text-purple-700">
+              Year 2 Residuals
+            </div>
+            <div className="text-lg font-bold text-gray-900">{formatCurrency(kpis.year2Residuals)}</div>
           </div>
         </div>
-      </div>
 
-      {/* Dashboard Panel */}
-      <div className="w-3/4 flex flex-col gap-1 overflow-hidden">
-        {/* KPIs */}
-        <div className="grid grid-cols-4 gap-1">
-          <KPICard title="Year 1 Revenue" value={formatCurrency(kpis.year1Revenue)} color="blue" />
-          <KPICard title="Year 1 Costs" value={formatCurrency(kpis.year1Cost)} color="red" />
-          <KPICard title="Year 1 Profit" value={formatCurrency(kpis.year1Profit)} color="green" />
-          <KPICard title="Retention Rate" value={`${Math.round(monthlyData[0]?.retentionRate * 100 || 0)}%`} color="purple" />
-          <KPICard title="Year 2 Revenue" value={formatCurrency(kpis.year2Revenue)} color="blue" />
-          <KPICard title="Year 2 Costs" value={formatCurrency(kpis.year2Cost)} color="red" />
-          <KPICard title="Year 2 Profit" value={formatCurrency(kpis.year2Profit)} color="green" />
-          <KPICard title="Year 2 Residuals" value={formatCurrency(kpis.year2Residuals)} color="purple" />
-        </div>
-
-        {/* Chart */}
-        <div className="bg-white rounded shadow-sm p-1 h-32">
-          <h3 className="text-xs font-semibold text-gray-700 mb-0.5">Monthly Performance (24 Months)</h3>
-          <ResponsiveContainer width="100%" height="90%">
+        {/* Cashflow Chart */}
+        <div className="rounded-lg border border-gray-200 p-4 bg-white">
+          <div className="text-sm font-semibold text-gray-800 mb-2">
+            Monthly Cashflow – First 24 Months
+          </div>
+          <ResponsiveContainer width="100%" height={220}>
             <BarChart data={chartData}>
-              <CartesianGrid strokeDasharray="3 3" />
-              <XAxis dataKey="month" tick={{ fontSize: 10 }} />
-              <YAxis tick={{ fontSize: 10 }} />
-              <Tooltip />
+              <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+              <XAxis dataKey="month" tick={{ fontSize: 10 }} stroke="#6b7280" />
+              <YAxis tick={{ fontSize: 10 }} stroke="#6b7280" />
+              <Tooltip 
+                contentStyle={{ fontSize: 12, backgroundColor: '#fff', border: '1px solid #d1d5db' }}
+                formatter={(value) => formatCurrency(value)}
+              />
               <Legend wrapperStyle={{ fontSize: 11 }} />
               <Bar dataKey="Revenue" fill="#3b82f6" />
               <Bar dataKey="Cost" fill="#ef4444" />
@@ -371,151 +725,111 @@ const FinancialDashboard = () => {
           </ResponsiveContainer>
         </div>
 
-        {/* Monthly Breakdown for First 6 Months */}
-        <div className="bg-white rounded shadow-sm p-1 flex-1 overflow-hidden">
-          <h3 className="text-xs font-semibold text-gray-700 mb-0.5">First 6 Months - Cashflow Analysis</h3>
-          <div className="overflow-auto h-full">
-            <table className="w-full text-xs">
-            <thead className="bg-gray-50">
-              <tr>
-                <th className="px-1 py-0.5 text-left text-xs">Month</th>
-                <th className="px-1 py-0.5 text-right text-xs">Agents</th>
-                <th className="px-1 py-0.5 text-right text-xs">HHs</th>
-                <th className="px-1 py-0.5 text-right text-xs">Revenue</th>
-                <th className="px-1 py-0.5 text-right text-xs">Residual</th>
-                <th className="px-1 py-0.5 text-right text-xs">Call Cost</th>
-                <th className="px-1 py-0.5 text-right text-xs">CSR Cost</th>
-                <th className="px-1 py-0.5 text-right text-xs">Training</th>
-                <th className="px-1 py-0.5 text-right text-xs">E&O Cost</th>
-                <th className="px-1 py-0.5 text-right text-xs">Software</th>
-                <th className="px-1 py-0.5 text-right text-xs">Sales Comm</th>
-                <th className="px-1 py-0.5 text-right text-xs">Total Cost</th>
-                <th className="px-1 py-0.5 text-right text-xs">Net Profit</th>
-                <th className="px-1 py-0.5 text-right text-xs">Cum Profit</th>
-              </tr>
-            </thead>
-            <tbody>
-              {monthlyData.slice(0, 6).map((month, idx) => {
-                const cumulativeProfit = monthlyData.slice(0, idx + 1).reduce((sum, m) => sum + m.netProfit, 0);
-                return (
-                  <tr key={month.month} className="border-t">
-                    <td className="px-1 py-0.5 font-medium text-xs">M{month.month}</td>
-                    <td className="px-1 py-0.5 text-right text-xs">{month.totalAgents}</td>
-                    <td className="px-1 py-0.5 text-right text-xs">{Math.round(month.issuedSales).toLocaleString()}</td>
-                    <td className="px-1 py-0.5 text-right text-xs">${Math.round(month.totalRevenue).toLocaleString()}</td>
-                    <td className="px-1 py-0.5 text-right text-xs">${Math.round(month.residualIncome || 0).toLocaleString()}</td>
-                    <td className="px-1 py-0.5 text-right text-xs">${Math.round(month.callCost).toLocaleString()}</td>
-                    <td className="px-1 py-0.5 text-right text-xs">${Math.round(month.csrCost).toLocaleString()}</td>
-                    <td className="px-1 py-0.5 text-right text-xs">${Math.round(month.csrTrainingCost).toLocaleString()}</td>
-                    <td className="px-1 py-0.5 text-right text-xs">${Math.round(month.eoCost).toLocaleString()}</td>
-                    <td className="px-1 py-0.5 text-right text-xs">${Math.round(month.softwareCost).toLocaleString()}</td>
-                    <td className="px-1 py-0.5 text-right text-xs">${Math.round(month.salesAgentCommission).toLocaleString()}</td>
-                    <td className="px-1 py-0.5 text-right text-xs">${Math.round(month.totalCost).toLocaleString()}</td>
-                    <td className={`px-1 py-0.5 text-right text-xs ${month.netProfit >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                      ${Math.round(month.netProfit).toLocaleString()}
-                    </td>
-                    <td className={`px-1 py-0.5 text-right text-xs font-semibold ${cumulativeProfit >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                      ${Math.round(cumulativeProfit).toLocaleString()}
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-            </table>
+        {/* Profit & Residuals Row */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+          <div className="rounded-lg border border-gray-200 p-4 bg-white">
+            <div className="text-sm font-semibold text-gray-800 mb-2">Profit</div>
+            <div className="grid grid-cols-2 gap-4 text-sm">
+              <div>
+                <div className="text-[11px] uppercase font-medium text-gray-500">Year 1 Profit</div>
+                <div className="text-base font-bold text-gray-900">{formatCurrency(kpis.year1Profit)}</div>
+              </div>
+              <div>
+                <div className="text-[11px] uppercase font-medium text-gray-500">Year 2 Profit</div>
+                <div className="text-base font-bold text-gray-900">{formatCurrency(kpis.year2Profit)}</div>
+              </div>
+            </div>
+          </div>
+
+          <div className="rounded-lg border border-gray-200 p-4 bg-white">
+            <div className="text-sm font-semibold text-gray-800 mb-2">Residuals</div>
+            <div className="grid grid-cols-2 gap-4 text-sm">
+              <div>
+                <div className="text-[11px] uppercase font-medium text-gray-500">Year 2 Residuals</div>
+                <div className="text-base font-bold text-gray-900">{formatCurrency(kpis.year2Residuals)}</div>
+              </div>
+              <div>
+                <div className="text-[11px] uppercase font-medium text-gray-500">Year 3 Residuals</div>
+                <div className="text-base font-bold text-gray-900">{formatCurrency(kpis.year3Residuals)}</div>
+              </div>
+            </div>
+            <div className="text-[10px] text-gray-500 mt-2 italic">
+              Year 2 residuals are already included in Year 2 profit.
+            </div>
           </div>
         </div>
 
-        {/* Tables */}
-        <div className="grid grid-cols-2 gap-1 flex-1 overflow-hidden">
-          <SummaryTable title="Year 1 Summary" data={year1Summary} />
-          <SummaryTable title="Year 2 Summary" data={year2Summary} />
+        {/* Year Summaries (Collapsible Tables) */}
+        <div className="space-y-2">
+          <details className="rounded-lg border border-gray-200 bg-white">
+            <summary className="cursor-pointer select-none px-4 py-3 text-sm font-semibold text-gray-800 flex items-center justify-between hover:bg-gray-50">
+              <span>Year 1 Summary</span>
+              <span className="text-xs text-gray-500">Expand</span>
+            </summary>
+            <div className="px-4 pb-4 overflow-x-auto">
+              <table className="w-full text-xs">
+                <thead className="bg-gray-50">
+                  <tr>
+                    <th className="px-2 py-2 text-left text-xs">Period</th>
+                    <th className="px-2 py-2 text-right text-xs">Policies</th>
+                    <th className="px-2 py-2 text-right text-xs">Premium</th>
+                    <th className="px-2 py-2 text-right text-xs">Revenue</th>
+                    <th className="px-2 py-2 text-right text-xs">Cost</th>
+                    <th className="px-2 py-2 text-right text-xs">Profit</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {year1Summary.map((row, idx) => (
+                    <tr key={idx} className={row.name === 'Total' ? 'font-semibold border-t-2 bg-gray-50' : 'border-t'}>
+                      <td className="px-2 py-2 text-xs">{row.name}</td>
+                      <td className="px-2 py-2 text-right text-xs">{formatNumber(row.issuedSales)}</td>
+                      <td className="px-2 py-2 text-right text-xs">{formatCurrency(row.totalPremium)}</td>
+                      <td className="px-2 py-2 text-right text-xs">{formatCurrency(row.totalRevenue)}</td>
+                      <td className="px-2 py-2 text-right text-xs">{formatCurrency(row.totalCost)}</td>
+                      <td className="px-2 py-2 text-right text-xs">{formatCurrency(row.netProfit)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </details>
+
+          <details className="rounded-lg border border-gray-200 bg-white">
+            <summary className="cursor-pointer select-none px-4 py-3 text-sm font-semibold text-gray-800 flex items-center justify-between hover:bg-gray-50">
+              <span>Year 2 Summary</span>
+              <span className="text-xs text-gray-500">Expand</span>
+            </summary>
+            <div className="px-4 pb-4 overflow-x-auto">
+              <table className="w-full text-xs">
+                <thead className="bg-gray-50">
+                  <tr>
+                    <th className="px-2 py-2 text-left text-xs">Period</th>
+                    <th className="px-2 py-2 text-right text-xs">Policies</th>
+                    <th className="px-2 py-2 text-right text-xs">Premium</th>
+                    <th className="px-2 py-2 text-right text-xs">Revenue</th>
+                    <th className="px-2 py-2 text-right text-xs">Cost</th>
+                    <th className="px-2 py-2 text-right text-xs">Profit</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {year2Summary.map((row, idx) => (
+                    <tr key={idx} className={row.name === 'Total' ? 'font-semibold border-t-2 bg-gray-50' : 'border-t'}>
+                      <td className="px-2 py-2 text-xs">{row.name}</td>
+                      <td className="px-2 py-2 text-right text-xs">{formatNumber(row.issuedSales)}</td>
+                      <td className="px-2 py-2 text-right text-xs">{formatCurrency(row.totalPremium)}</td>
+                      <td className="px-2 py-2 text-right text-xs">{formatCurrency(row.totalRevenue)}</td>
+                      <td className="px-2 py-2 text-right text-xs">{formatCurrency(row.totalCost)}</td>
+                      <td className="px-2 py-2 text-right text-xs">{formatCurrency(row.netProfit)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </details>
         </div>
-      </div>
+      </main>
     </div>
   );
 };
-
-const InputSlider = ({ label, value, onChange, min, max, suffix = '', helpText = '' }) => (
-  <div className="mb-1">
-    <div className="flex justify-between text-xs mb-0.5">
-      <span className="text-gray-700">{label}</span>
-      <span className="font-semibold text-gray-900">{value}{suffix}</span>
-    </div>
-    <input
-      type="range"
-      min={min}
-      max={max}
-      value={value}
-      onChange={(e) => onChange(Number(e.target.value))}
-      className="w-full h-1 bg-gray-200 rounded cursor-pointer"
-      title={helpText}
-    />
-    {helpText && <div className="text-xs text-gray-500 mt-0.5">{helpText}</div>}
-  </div>
-);
-
-const InputNumber = ({ label, value, onChange, prefix = '', helpText = '' }) => (
-  <div className="mb-1">
-    <label className="text-xs text-gray-700 block mb-0.5">{label}</label>
-    <div className="flex items-center">
-      {prefix && <span className="text-xs text-gray-500 mr-1">{prefix}</span>}
-      <input
-        type="number"
-        value={value}
-        onChange={(e) => onChange(Number(e.target.value))}
-        className="w-full px-1 py-0.5 text-xs border border-gray-300 rounded focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
-        title={helpText}
-      />
-    </div>
-    {helpText && <div className="text-xs text-gray-500 mt-0.5">{helpText}</div>}
-  </div>
-);
-
-const KPICard = ({ title, value, color }) => {
-  const colorMap = {
-    blue: 'bg-blue-50 text-blue-700 border-blue-200',
-    green: 'bg-green-50 text-green-700 border-green-200',
-    red: 'bg-red-50 text-red-700 border-red-200',
-    purple: 'bg-purple-50 text-purple-700 border-purple-200',
-    orange: 'bg-orange-50 text-orange-700 border-orange-200'
-  };
-  
-  return (
-    <div className={`${colorMap[color]} border rounded p-1`}>
-      <div className="text-xs font-medium opacity-75">{title}</div>
-      <div className="text-xs font-bold mt-0.5">{value}</div>
-    </div>
-  );
-};
-
-const SummaryTable = ({ title, data }) => (
-  <div className="bg-white rounded shadow-sm p-1 overflow-auto">
-    <h3 className="text-xs font-semibold text-gray-700 mb-0.5">{title}</h3>
-    <table className="w-full text-xs">
-      <thead className="bg-gray-50">
-        <tr>
-          <th className="px-1 py-0.5 text-left text-xs">Period</th>
-          <th className="px-1 py-0.5 text-right text-xs">Policies</th>
-          <th className="px-1 py-0.5 text-right text-xs">Premium</th>
-          <th className="px-1 py-0.5 text-right text-xs">Revenue</th>
-          <th className="px-1 py-0.5 text-right text-xs">Cost</th>
-          <th className="px-1 py-0.5 text-right text-xs">Profit</th>
-        </tr>
-      </thead>
-      <tbody>
-        {data.map((row, idx) => (
-          <tr key={idx} className={row.name === 'Total' ? 'font-semibold border-t-2 bg-gray-50' : 'border-t'}>
-            <td className="px-1 py-0.5 text-xs">{row.name}</td>
-            <td className="px-1 py-0.5 text-right text-xs">{Math.round(row.issuedSales).toLocaleString()}</td>
-            <td className="px-1 py-0.5 text-right text-xs">${Math.round(row.totalPremium / 1000)}k</td>
-            <td className="px-1 py-0.5 text-right text-xs">${Math.round(row.totalRevenue / 1000)}k</td>
-            <td className="px-1 py-0.5 text-right text-xs">${Math.round(row.totalCost / 1000)}k</td>
-            <td className="px-1 py-0.5 text-right text-xs">${Math.round(row.netProfit / 1000)}k</td>
-          </tr>
-        ))}
-      </tbody>
-    </table>
-  </div>
-);
 
 export default FinancialDashboard;
